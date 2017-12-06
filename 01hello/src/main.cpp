@@ -43,21 +43,6 @@ std::shared_ptr<SDL_Renderer> init_renderer(std::shared_ptr<SDL_Window> window) 
 	return renderer;
 }
 
-std::shared_ptr<SDL_Texture> load_texture( const std::shared_ptr<SDL_Renderer> renderer, const std::string fname ) {
-	SDL_Surface *bmp = SDL_LoadBMP( fname.c_str() );
-	if ( bmp == nullptr ) errthrow ( "SDL_LoadBMP" );
-	std::shared_ptr<SDL_Surface> bitmap ( bmp, []( SDL_Surface * ptr ) {
-		SDL_FreeSurface( ptr );
-	} );
-
-	SDL_Texture *tex = SDL_CreateTextureFromSurface( renderer.get(), bitmap.get() );
-	if ( tex == nullptr ) errthrow ( "SDL_CreateTextureFromSurface" );
-	std::shared_ptr<SDL_Texture> texture ( tex, []( SDL_Texture * ptr ) {
-		SDL_DestroyTexture( ptr );
-	} );
-	return texture;
-}
-
 std::shared_ptr<SDL_Texture> create_texture( const std::shared_ptr<SDL_Renderer> renderer, const int w, const int h ) {
 	SDL_Texture * tex = SDL_CreateTexture( renderer.get(),
 										   SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h );
