@@ -43,40 +43,21 @@ std::shared_ptr<SDL_Renderer> init_renderer(std::shared_ptr<SDL_Window> window) 
 	return renderer;
 }
 
-std::shared_ptr<SDL_Texture> create_texture( const std::shared_ptr<SDL_Renderer> renderer, const int w, const int h ) {
-	SDL_Texture * tex = SDL_CreateTexture( renderer.get(),
-										   SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h );
-	if ( tex == nullptr ) errthrow ( "SDL_CreateTexture" );
-	std::shared_ptr<SDL_Texture> texture ( tex, []( SDL_Texture * ptr ) {
-		SDL_DestroyTexture( ptr );
-	} );
-	return texture;
-}
 
-
-int main( ) { // int argc, char **argv ) {
-	
-	auto window = init_window();
+int main( ) { // int argc, char **argv ) {	
+	auto window = init_window(640,480);
 	auto renderer = init_renderer(window);
 
-	// we will be rendering data onto this:
-	auto game_screen = create_texture( renderer, 320, 200 );
-
-	// the actual screen data (for pixel art :D)
-	std::vector < uint32_t > game_screen_data( 320 * 200 );
-
-	std::pair <int, int>position( 30, 100 );
 	for ( bool game_active = true ; game_active; ) {
 		SDL_Event event;
 		while ( SDL_PollEvent( &event ) ) {
 			if ( event.type == SDL_QUIT ) game_active = false;
 		}
+		
 		SDL_RenderClear( renderer.get() );
-		game_screen_data[position.second * 320 + position.first * 2] = 0x0ffff1111;
-		position.first = ( position.first + 1 ) % 320;
-		position.second = ( position.second + 2 ) % 200;
-		SDL_UpdateTexture( game_screen.get(), NULL, game_screen_data.data(), 320 * sizeof( uint32_t ) );
-		SDL_RenderCopy( renderer.get(), game_screen.get(), NULL, NULL );
+		
+		SDL_RenderDrawPoint(renderer.get(), 100, 100); // https://wiki.libsdl.org/SDL_RenderDrawPoint
+
 		SDL_RenderPresent( renderer.get() );
 		SDL_Delay( 100 );
 	}
