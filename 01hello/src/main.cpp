@@ -1,8 +1,7 @@
 /**
  * This is the simple hello world for SDL2.
  *
- * The example tries to take care of resource allocation and deallocation
- * using smart pointers.
+ * textures loading
  */
 
 #include <SDL2/SDL.h>

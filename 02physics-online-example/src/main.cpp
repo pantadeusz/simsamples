@@ -1,7 +1,7 @@
 /**
  * This is the simple hello world for SDL2.
  *
- * physics sample - version offline
+ * Simple physics animation
  */
 
 #include <SDL2/SDL.h>
@@ -13,6 +13,8 @@
 #include <iostream>
 #include <cstdint>
 #include <vector>
+#include <array>
+
 
 auto errthrow = []( const std::string &e ) {
 	std::string errstr = e + " : " + SDL_GetError();
@@ -57,48 +59,72 @@ std::shared_ptr<SDL_Texture> load_texture( const std::shared_ptr<SDL_Renderer> r
 	return texture;
 }
 
-std::shared_ptr<SDL_Texture> create_texture( const std::shared_ptr<SDL_Renderer> renderer, const int w, const int h ) {
-	SDL_Texture * tex = SDL_CreateTexture( renderer.get(),
-										   SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h );
-	if ( tex == nullptr ) errthrow ( "SDL_CreateTexture" );
-	std::shared_ptr<SDL_Texture> texture ( tex, []( SDL_Texture * ptr ) {
-		SDL_DestroyTexture( ptr );
-	} );
-	return texture;
+using pos_t = std::array<double, 2> ;
+
+pos_t operator +( const pos_t &a, const pos_t &b ) {
+	return {a[0] + b[0], a[1] + b[1]};
+}
+pos_t operator -( const pos_t &a, const pos_t &b ) {
+	return {a[0] - b[0], a[1] - b[1]};
+}
+pos_t operator *( const pos_t &a, const pos_t &b ) {
+	return {a[0]*b[0], a[1]*b[1]};
+}
+pos_t operator *( const pos_t &a, const double &b ) {
+	return {a[0]*b, a[1]*b};
 }
 
-int main( ) { // int argc, char **argv ) {
 
-	auto window = init_window();
+int main( ) { // int argc, char **argv ) {
+	auto window = init_window( 640, 480 );
 	auto renderer = init_renderer( window );
 
-	// we will be rendering data onto this:
-	auto game_texture = load_texture( renderer, "data/face.bmp" );
-	auto moving_point_texture = create_texture( renderer, 320, 200 );
+	auto cannon_texture = load_texture( renderer, "armata.bmp" );
+	auto bullet_texture = load_texture( renderer, "kula.bmp" );
 
-	SDL_SetTextureBlendMode( moving_point_texture.get(), SDL_BLENDMODE_BLEND );
-	std::pair <int, int>position( 30, 100 );
-	std::vector < uint32_t > moving_point_texture_data( 320 * 200 );
+
+	pos_t gun_p  = {1, 10};
+	pos_t bullet_p = {2, 10};
+	pos_t bullet_v = {20, 0};
+	pos_t bullet_a = {0, 4};
+	double scale = 5;
+	double dt = 1 / 30.0;
 
 	for ( bool game_active = true ; game_active; ) {
 		SDL_Event event;
 		while ( SDL_PollEvent( &event ) ) {
-			if ( event.type == SDL_QUIT ) game_active = false;
+			if ( event.type == SDL_QUIT ) {game_active = false;}
+			if ( event.type == SDL_KEYDOWN ) {
+				if ( event.key.keysym.sym == SDLK_SPACE ) {
+					gun_p  = {1, 10};
+					bullet_p = {2, 10};
+					bullet_v = {20, 0};
+					bullet_a = {0, 4};
+				}
+			}
 		}
 
-		position.first = ( position.first + 1 ) % 320;
-		position.second = ( position.second + 2 ) % 200;
-		//
+
+
+		// fizyka
+		bullet_p = bullet_p + bullet_v * dt + bullet_v * bullet_a * 0.5 * dt * dt;
+		bullet_v = bullet_v + bullet_a * dt;
+		bullet_a = bullet_a + bullet_v * 0.001;
+		// grafika
 		SDL_RenderClear( renderer.get() );
 
-		moving_point_texture_data[position.second * 320 + position.first * 2] = 0x0ffff1111;
-		SDL_UpdateTexture( moving_point_texture.get(), NULL, moving_point_texture_data.data(), 320 * sizeof( uint32_t ) );
+		SDL_Rect dstrect = {.x = ( int )( gun_p[0] * scale ), .y = ( int )( gun_p[1] * scale ), .w = 64, .h = 64};
+		SDL_Point center = {.x = 32, .y = 32};
+		SDL_RenderCopyEx( renderer.get(), cannon_texture.get(), NULL,  &dstrect, 5, &center, SDL_FLIP_NONE );
 
-		SDL_RenderClear( renderer.get() );
-		SDL_RenderCopy( renderer.get(), game_texture.get(), NULL, NULL );
-		SDL_RenderCopy( renderer.get(), moving_point_texture.get(), NULL, NULL );
+		dstrect = {.x = ( int )( bullet_p[0] * scale ), .y = ( int )( bullet_p[1] * scale ), .w = 64, .h = 64};
+		center = {.x = 32, .y = 32};
+		SDL_RenderCopyEx( renderer.get(), bullet_texture.get(), NULL,  &dstrect, 0, &center, SDL_FLIP_NONE );
+
+		//		SDL_RenderDrawPoint(renderer.get(), 100, 100); // https://wiki.libsdl.org/SDL_RenderDrawPoint
+
 		SDL_RenderPresent( renderer.get() );
-		SDL_Delay( 100 );
+		SDL_Delay( ( int )( dt / 1000 ) );
 	}
 	return 0;
 }
