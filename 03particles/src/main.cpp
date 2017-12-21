@@ -35,7 +35,7 @@ public:
 	position_t velocity;
 	position_t accel;
 
-	Particle( const position_t &p0, const position_t &v0 = {0, 0}, const position_t &a0 = {0, 0} ): position( p0 ), velocity{0, 0}, accel{0, 0} {
+	Particle( const position_t &p0, const position_t &v0 = {0, 0}, const position_t &a0 = {0, 0} ): position( p0 ), velocity(v0), accel(a0) {
 
 	}
 
@@ -71,7 +71,7 @@ int main( ) { // int argc, char **argv ) {
 	}
 	SDL_UpdateTexture( particle_tex.get(), NULL, pixels.get(), 16 * sizeof( Uint32 ) );
 
-	std::chrono::duration<double> dt( 0.01 );
+	std::chrono::duration<double> dt( 0.01 ); // w sekundach
 
 	SDL_Rect destRectForFace = {
 		.x = 160,
