@@ -1,42 +1,44 @@
 #include "p_particles.hpp"
+#include <iostream>
 
 namespace sgd {
 
 
 Particle::Particle( const position_t &p0, const position_t &v0, const position_t &a0 ): position( p0 ), velocity( v0 ), accel( a0 ) {
 	ttl = 1;
-	onExitScreen = []( Particle & ) {
+	on_update = []( Particle &p, const duration_t &dt ) {
+	    double dts = dt.count();
+	    p.position = p.position + p.velocity * dts + p.accel * dts * dts * 0.5;
+	    p.velocity = p.velocity + p.accel * dts;
+	    p.ttl -= dts;
 		return std::vector < Particle >();
 	};
-	drawParticle = []( Particle & ) {};
+	draw_particle = []( const Particle & ) {};
+	on_interaction = []( Particle &, const Particle &, const duration_t & ){};
 }
 
-void Particle::update( std::chrono::duration<double> &dt ) {
-	double dts = dt.count();
-	position = position + velocity * dts + accel * dts * dts * 0.5;
-	velocity = velocity + accel * dts;
-	ttl -= dts;
+void draw_particles( const std::vector < Particle > &particles0 ) {
+    for (auto &p:particles0) p.draw_particle(p);
 }
 
-void calculateParticles( std::vector < Particle >  &particles0, std::chrono::duration<double> &dt ) {
-	std::vector < bool> dels( particles0.size() );
+std::vector < Particle > calculate_particles( const std::vector < Particle >  &particles0, duration_t &dt ) {
+    std::vector < bool> dels( particles0.size() );
 	auto i = 0;
-	auto particles = particles0;
-	std::vector < Particle > toAdd;
+	std::vector < Particle > particles = particles0;
+	std::vector < Particle > toAdd; // particles to add
 	for ( auto & p : particles ) {
-		p.update( dt );
-		if ( ( p.position[0] < 0 ) || ( p.position[1] < 0 ) || ( p.position[0] > 64 ) || ( p.position[1] > 48 ) ) {
-			auto t = p.onExitScreen( p );
-			toAdd.insert( toAdd.end(), t.begin(), t.end() );
-		}
+		auto t = p.on_update( p, dt );
+        toAdd.insert( toAdd.end(), t.begin(), t.end() );
 		dels[i] = p.ttl < 0;
 		i++;
 	}
-	particles0.clear();
+    std::vector < Particle > ret;
+    ret.reserve(particles.size());
 	for ( int i = 0; i < particles.size(); i++ ) {
-		if ( !dels[i] ) particles0.push_back( particles[i] );
+		if ( !dels[i] ) ret.push_back( particles[i] );
 	}
-	particles0.insert( particles0.end(), toAdd.begin(), toAdd.end() );
+	ret.insert( ret.end(), toAdd.begin(), toAdd.end() );
+    return ret;
 }
 
 }

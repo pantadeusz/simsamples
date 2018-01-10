@@ -21,17 +21,11 @@
 
 using namespace sgd;
 
-void drawParticles ( std::vector < Particle >  &particles0 ) {
-	for ( auto & p : particles0 ) p.drawParticle( p );
-}
-
 
 int main( ) { // int argc, char **argv ) {
 
 	auto window = init_window( 640, 480 );
 	auto renderer = init_renderer( window );
-
-	Particle particle( {160, 100}, {10, -50}, {0, 10} );
 
 	auto particle_tex = create_texture( renderer, 16, 16 );
 	std::unique_ptr < Uint32 > pixels ( new Uint32[16 * 16] );
@@ -64,7 +58,7 @@ int main( ) { // int argc, char **argv ) {
 
 	std::uniform_real_distribution<double> uniform_dist_one( -1, 1 );
 
-	auto defaultDrawParticle = [&]( Particle & p ) {
+	auto defaultDrawParticle = [&]( const Particle & p ) {
 		auto pos = p.position * scaleFactor;
 		SDL_Rect destRectForFace = {
 			.x = pos[0],
@@ -98,27 +92,7 @@ int main( ) { // int argc, char **argv ) {
 					np = np / scaleFactor;
 					Particle particle( np, {10, -20}, {0, 10} ) ;
 					particle.ttl = 20;
-					particle.onExitScreen = [&]( Particle & self ) {
-						self.ttl = -1;
-						std:: cout << "za ekranem" << self.position[0] << " " << self.position[1] << std::endl;
-						std::vector < Particle > boom;
-						for ( int i = 0; i < 1000; i++ ) {
-							double v = 100 * uniform_dist_one( randomEngine );
-							double a = M_PI_2 * uniform_dist_one( randomEngine );
-							position_t p = {sin( a )*v, cos( a )*v};
-							p = p / scaleFactor;
-							Particle np( self.position, p, {0, 10} ) ;
-							np.ttl = 5;
-							np.drawParticle = [&renderer, &scaleFactor]( Particle & p ) {
-								SDL_SetRenderDrawColor( renderer.get(), 255, 64, 64, 255 );
-								auto nnp = p.position * scaleFactor;
-								SDL_RenderDrawPoint( renderer.get(), nnp[0], nnp[1] );
-							};
-							boom.push_back( np );
-						}
-						return boom;
-					};
-					particle.drawParticle = defaultDrawParticle ;
+					particle.draw_particle = defaultDrawParticle ;
 					particles.push_back( particle );
 					timeToShoot = 0.1;
 				}
@@ -128,18 +102,17 @@ int main( ) { // int argc, char **argv ) {
 
 		// fizyka
 
-		calculateParticles( particles, dt ) ;
+		particles = calculate_particles( particles, dt ) ;
 		if ( timeToShoot > 0 )timeToShoot -= dt.count();
 		if ( timeToSpawnParicle > 0 ) timeToSpawnParicle -= dt.count();
 
 
 		// grafika
 
-
 		SDL_SetRenderDrawColor( renderer.get(), 0, 0, 0, 0 );
 		SDL_RenderClear( renderer.get() );
 
-		drawParticles ( particles );
+		draw_particles ( particles );
 
 		SDL_RenderPresent( renderer.get() );
 
