@@ -12,6 +12,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <map>
 
 #include <functional>
 
@@ -66,7 +67,7 @@ public:
 
 void calculateParticles( std::vector < Particle >  &particles0, std::chrono::duration<double> &dt ) {
 	std::vector < bool> dels( particles0.size() );
-	int i = 0;
+	auto i = 0;
 	auto particles = particles0;
 	std::vector < Particle > toAdd;
 	for ( auto & p : particles ) {
@@ -90,7 +91,6 @@ void drawParticles ( std::vector < Particle >  &particles0 ) {
 }
 
 using namespace sgd;
-
 
 
 int main( ) { // int argc, char **argv ) {
