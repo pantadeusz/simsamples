@@ -18,7 +18,7 @@ auto errthrow = []( const std::string &e ) {
 };
 
 std::shared_ptr<SDL_Window> init_window( const int width, const int height ) {
-	if ( SDL_Init( SDL_INIT_VIDEO ) != 0 ) errthrow ( "SDL_Init" );
+	if ( SDL_Init( SDL_INIT_EVERYTHING ) != 0 ) errthrow ( "SDL_Init" );
 
 	SDL_Window *win = SDL_CreateWindow( "Witaj w Swiecie",
 										SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -66,6 +66,23 @@ std::shared_ptr<SDL_Texture> create_texture( const std::shared_ptr<SDL_Renderer>
     SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
 
 	return texture;
+}
+
+std::shared_ptr<SDL_Texture> generate_texture_ball(std::shared_ptr<SDL_Renderer> renderer, int r, Uint32 color) {
+	auto particle_tex = create_texture( renderer, r*2+1, r*2+1 );
+	std::unique_ptr < Uint32 > pixels ( new Uint32[(r*2+1) * (r*2+1)] );
+	for ( int x = -r; x <= r; x++ ) {
+		for ( int y = -r; y <= r; y++ ) {
+			int r_ = std::sqrt( x * x + y * y );
+			if ( r_ <= r ) {
+				pixels.get()[(y+r) * (r*2+1) + (x+r)] = (color & 0x0ffffff) + ((255-r_*255/r)<<24);
+			} else {
+				pixels.get()[(y+r) * (r*2+1) + (x+r)] = 0;
+			}
+		}
+	}
+	SDL_UpdateTexture( particle_tex.get(), NULL, pixels.get(), (r*2+1) * sizeof( Uint32 ) );
+	return particle_tex;
 }
 
 

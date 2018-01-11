@@ -14,6 +14,8 @@ std::shared_ptr<SDL_Texture> load_texture( const std::shared_ptr<SDL_Renderer> r
 
 std::shared_ptr<SDL_Texture> create_texture( const std::shared_ptr<SDL_Renderer> renderer, const int w, const int h );
 
+std::shared_ptr<SDL_Texture> generate_texture_ball(std::shared_ptr<SDL_Renderer> renderer, int r, Uint32 color = 0x0bbbbbb);
+
 }
 
 #endif

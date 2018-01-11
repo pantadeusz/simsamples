@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace sgd {
-using duration_t = std::chrono::duration<double>;
+using duration_t = std::chrono::duration<double>; //std::chrono::milliseconds;//std::chrono::duration<double,std::ratio<1>>; //std::chrono::duration_cast<std::chrono::milliseconds>
 
 class Particle {
 public:
@@ -27,7 +27,10 @@ public:
 	std::function < void ( const Particle & ) > draw_particle; 
 
 // konstruktor
-	Particle( const position_t &p0, const position_t &v0 = {0, 0}, const position_t &a0 = {0, 0} );
+	void init( const position_t &p0, const position_t &v0 = {0, 0}, const position_t &a0 = {0, 0} );
+
+// funkcje statyczne ----------
+	static std::function < std::vector < Particle > ( Particle &, const duration_t & ) > get_default_update_f();
 };
 
 
