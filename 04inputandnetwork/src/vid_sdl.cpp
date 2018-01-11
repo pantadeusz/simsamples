@@ -73,7 +73,7 @@ std::shared_ptr<SDL_Texture> generate_texture_ball(std::shared_ptr<SDL_Renderer>
 	std::unique_ptr < Uint32 > pixels ( new Uint32[(r*2+1) * (r*2+1)] );
 	for ( int x = -r; x <= r; x++ ) {
 		for ( int y = -r; y <= r; y++ ) {
-			int r_ = std::sqrt( x * x + y * y );
+			int r_ = ::sqrt( x * x + y * y );
 			if ( r_ <= r ) {
 				pixels.get()[(y+r) * (r*2+1) + (x+r)] = (color & 0x0ffffff) + ((255-r_*255/r)<<24);
 			} else {
