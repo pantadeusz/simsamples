@@ -80,7 +80,7 @@ void calculateParticles( std::vector < Particle >  &particles0, std::chrono::dur
 		i++;
 	}
 	particles0.clear();
-	for ( int i = 0; i < particles.size(); i++ ) {
+	for ( int i = 0; i < (int)particles.size(); i++ ) {
 		if ( !dels[i] ) particles0.push_back( particles[i] );
 	}
 	particles0.insert( particles0.end(), toAdd.begin(), toAdd.end() );
@@ -113,7 +113,7 @@ int main( ) { // int argc, char **argv ) {
 	}
 	SDL_UpdateTexture( particle_tex.get(), NULL, pixels.get(), 16 * sizeof( Uint32 ) );
 
-	std::chrono::duration<double> dt( 0.01 ); // w sekundach
+	std::chrono::duration<double> dt( 0.033 ); // w sekundach
 
 	std::vector < Particle > particles;
 	particles.reserve( 30000 );
@@ -134,15 +134,16 @@ int main( ) { // int argc, char **argv ) {
 	auto defaultDrawParticle = [&]( Particle & p ) {
 		auto pos = p.position * scaleFactor;
 		SDL_Rect destRectForFace = {
-			.x = pos[0],
-			.y = pos[1],
-			.w = 16,
-			.h = 16
+			.x = (int)pos[0],
+			.y = (int)pos[1],
+			.w = (int)16,
+			.h = (int)16
 		};
 		SDL_RenderCopyEx( renderer.get(), particle_tex.get(), NULL,  &destRectForFace,  destRectForFace.x,  NULL, SDL_FLIP_NONE );
 	};
 
-	auto prevTime = std::chrono::high_resolution_clock::now(); // w sekundach
+	using namespace std::chrono;
+	time_point<high_resolution_clock, duration<double> > prevTime = high_resolution_clock::now(); // w sekundach
 
 	for ( bool game_active = true ; game_active; ) {
 		SDL_Event event;
@@ -161,7 +162,7 @@ int main( ) { // int argc, char **argv ) {
 				break;
 			case SDL_MOUSEMOTION:
 				if ( updating && ( timeToShoot <= 0 ) ) {
-					position_t np = {event.motion.x - 8, event.motion.y - 8};
+					position_t np = {(double)(event.motion.x - 8), (double)(event.motion.y - 8)};
 					np = np / scaleFactor;
 					Particle particle( np, {10, -20}, {0, 10} ) ;
 					particle.ttl = 20;
@@ -194,11 +195,11 @@ int main( ) { // int argc, char **argv ) {
 		}
 
 		// fizyka
-
-		calculateParticles( particles, dt ) ;
-		if ( timeToShoot > 0 )timeToShoot -= dt.count();
-		if ( timeToSpawnParicle > 0 ) timeToSpawnParicle -= dt.count();
-
+		if (dt.count() > 0.0) {
+			calculateParticles( particles, dt ) ;
+			if ( timeToShoot > 0 )timeToShoot -= dt.count();
+			if ( timeToSpawnParicle > 0 ) timeToSpawnParicle -= dt.count();
+		}
 
 		// grafika
 
@@ -210,8 +211,14 @@ int main( ) { // int argc, char **argv ) {
 
 		SDL_RenderPresent( renderer.get() );
 
-		std::this_thread::sleep_until( prevTime + dt );
-		prevTime = std::chrono::high_resolution_clock::now();
+//		std::this_thread::sleep_until( prevTime + dt );
+//		prevTime = prevTime + dt;// lub std::chrono::high_resolution_clock::now();
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		dt = currentTime - prevTime;
+		prevTime = currentTime;
+		static int f = 0;
+		if (((f++)%100) == 0)
+		std::cout << "dt = " << dt.count() << "  FPS=" << (1/dt.count()) << std::endl;
 	}
 	return 0;
 }

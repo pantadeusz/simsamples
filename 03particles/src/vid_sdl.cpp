@@ -31,7 +31,8 @@ std::shared_ptr<SDL_Window> init_window( const int width, const int height ) {
 }
 
 std::shared_ptr<SDL_Renderer> init_renderer( std::shared_ptr<SDL_Window> window ) {
-	SDL_Renderer *ren = SDL_CreateRenderer( window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC );
+	// SDL_RENDERER_PRESENTVSYNC
+	SDL_Renderer *ren = SDL_CreateRenderer( window.get(), -1, SDL_RENDERER_ACCELERATED );
 	if ( ren == nullptr ) errthrow ( "SDL_CreateRenderer" );
 	std::shared_ptr<SDL_Renderer> renderer ( ren, []( SDL_Renderer * ptr ) {
 		SDL_DestroyRenderer( ptr );

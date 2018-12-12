@@ -109,7 +109,7 @@ int main( ) { // int argc, char **argv ) {
 		// fizyka
 		bullet_p = bullet_p + bullet_v * dt + bullet_v * bullet_a * 0.5 * dt * dt;
 		bullet_v = bullet_v + bullet_a * dt;
-		bullet_a = bullet_a + bullet_v * 0.001;
+		bullet_a = bullet_a - bullet_v * 0.001;
 		// grafika
 		SDL_RenderClear( renderer.get() );
 
