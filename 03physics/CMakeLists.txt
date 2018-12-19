@@ -31,3 +31,6 @@ file(GLOB_RECURSE sdldemo_SOURCES "src/*.cpp")
 
 add_executable(sdldemoapp ${sdldemo_SOURCES})
 target_link_libraries(sdldemoapp ${SDL2_LIBRARY})
+add_custom_command(TARGET sdldemoapp PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_SOURCE_DIR}/data $<TARGET_FILE_DIR:sdldemoapp>/data)
