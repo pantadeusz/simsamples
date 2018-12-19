@@ -113,7 +113,7 @@ int main( ) { // int argc, char **argv ) {
 	}
 	SDL_UpdateTexture( particle_tex.get(), NULL, pixels.get(), 16 * sizeof( Uint32 ) );
 
-	std::chrono::duration<double> dt( 0.033 ); // w sekundach
+	std::chrono::duration<double> dt( 0.015 ); // w sekundach
 
 	std::vector < Particle > particles;
 	particles.reserve( 30000 );
@@ -146,6 +146,7 @@ int main( ) { // int argc, char **argv ) {
 	time_point<high_resolution_clock, duration<double> > prevTime = high_resolution_clock::now(); // w sekundach
 
 	for ( bool game_active = true ; game_active; ) {
+		// event loop
 		SDL_Event event;
 		while ( SDL_PollEvent( &event ) ) {
 			switch ( event.type ) {
@@ -202,18 +203,18 @@ int main( ) { // int argc, char **argv ) {
 		}
 
 		// grafika
+		{
+			SDL_SetRenderDrawColor( renderer.get(), 0, 0, 0, 0 );
+			SDL_RenderClear( renderer.get() );
 
+			drawParticles ( particles );
 
-		SDL_SetRenderDrawColor( renderer.get(), 0, 0, 0, 0 );
-		SDL_RenderClear( renderer.get() );
-
-		drawParticles ( particles );
-
-		SDL_RenderPresent( renderer.get() );
-
+			SDL_RenderPresent( renderer.get() );
+		}
+		auto currentTime = std::chrono::high_resolution_clock::now();
+//		std::this_thread::sleep_for( dt );
 //		std::this_thread::sleep_until( prevTime + dt );
 //		prevTime = prevTime + dt;// lub std::chrono::high_resolution_clock::now();
-		auto currentTime = std::chrono::high_resolution_clock::now();
 		dt = currentTime - prevTime;
 		prevTime = currentTime;
 		static int f = 0;
