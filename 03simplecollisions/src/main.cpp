@@ -49,7 +49,8 @@ std::shared_ptr<SDL_Window> init_window(const int width = 320, const int height 
 		throw std::runtime_error(SDL_GetError());
 
 	SDL_Window *win = SDL_CreateWindow("Witaj w Swiecie",
-									   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+									   SDL_WINDOWPOS_UNDEFINED, 
+									   SDL_WINDOWPOS_UNDEFINED,
 									   width, height, SDL_WINDOW_SHOWN);
 	if (win == nullptr)
 		throw std::runtime_error(SDL_GetError());
@@ -61,7 +62,8 @@ std::shared_ptr<SDL_Window> init_window(const int width = 320, const int height 
 
 std::shared_ptr<SDL_Renderer> init_renderer(std::shared_ptr<SDL_Window> window)
 {
-	SDL_Renderer *ren = SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	SDL_Renderer *ren = SDL_CreateRenderer(window.get(), -1, 
+	SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (ren == nullptr)
 		throw std::runtime_error(SDL_GetError());
 	std::shared_ptr<SDL_Renderer> renderer(ren, [](SDL_Renderer *ptr) {
@@ -73,22 +75,17 @@ std::shared_ptr<SDL_Renderer> init_renderer(std::shared_ptr<SDL_Window> window)
 std::shared_ptr<SDL_Texture> load_texture(const std::shared_ptr<SDL_Renderer> renderer, const std::string fname)
 {
 	SDL_Surface *bmp = SDL_LoadBMP(fname.c_str());
-	if (bmp == nullptr)
-		throw std::runtime_error(SDL_GetError());
-	std::shared_ptr<SDL_Surface> bitmap(bmp, [](SDL_Surface *ptr) {
-		SDL_FreeSurface(ptr);
-	});
-
-	SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer.get(), bitmap.get());
-	if (tex == nullptr)
-		throw std::runtime_error(SDL_GetError());
+	SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer.get(), bmp);
 	std::shared_ptr<SDL_Texture> texture(tex, [](SDL_Texture *ptr) {
 		SDL_DestroyTexture(ptr);
 	});
+	SDL_FreeSurface(bmp);
 	return texture;
 }
 
-std::shared_ptr<SDL_Texture> load_png_texture(const std::shared_ptr<SDL_Renderer> renderer, const std::string fname)
+std::shared_ptr<SDL_Texture> load_png_texture(
+	const std::shared_ptr<SDL_Renderer> renderer, 
+	const std::string fname)
 {
 	std::vector<unsigned char> image;
 	unsigned width, height;
@@ -105,7 +102,9 @@ std::shared_ptr<SDL_Texture> load_png_texture(const std::shared_ptr<SDL_Renderer
 	return texture;
 }
 
-std::shared_ptr<SDL_Texture> create_texture(const std::shared_ptr<SDL_Renderer> renderer, const int w, const int h)
+std::shared_ptr<SDL_Texture> create_texture(
+	const std::shared_ptr<SDL_Renderer> renderer, 
+	const int w, const int h)
 {
 	SDL_Texture *tex = SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
 	if (tex == nullptr)
@@ -142,66 +141,109 @@ double length(const vec_t &d_)
 	return std::sqrt(d[0] + d[1]);
 }
 
-void draw_player(SDL_Renderer *renderer, vec_t player_p, const std::array<vec_t, 8> &player_hit_points, const std::array<int,8> &player_hit_points_touch = {0,0,0,0,0,0,0,0})
-{
-	SDL_Rect rect = {player_p[0] - 10, player_p[1] - 15, 20, 30};
-	SDL_SetRenderDrawColor(renderer, 255, 128, 128, 255);
-	SDL_RenderDrawRect(renderer,&rect);
-
-	for (size_t i = 0; i < player_hit_points.size(); i++) {
-		if (player_hit_points_touch[i] == 0) SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-		else SDL_SetRenderDrawColor(renderer, 0, 128, 128, 255);
-		auto p = player_hit_points[i] + player_p;
-		SDL_Rect rect = {p[0]-3, p[1] - 3, 6, 6};
-		SDL_RenderDrawRect(renderer,&rect);
+class player_t {
+public:
+	vec_t position;
+	vec_t velocity;
+	
+	std::vector<vec_t> collision_pts;
+	std::vector<vec_t> collision_mod;
+	void draw(std::shared_ptr<SDL_Renderer> &r,
+		const std::vector<int> collisions = {}
+		) const {
+		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),20,30};
+		SDL_SetRenderDrawColor(r.get(),255,0,0,255);
+		SDL_RenderDrawRect(r.get(), &rect);
+		int i =0;
+		for (const auto &cp : collision_pts) {
+			auto p = position + cp;
+			SDL_Rect rect = {(int)(p[0]-3),(int)(p[1]-3),6,6};
+			if ((collisions.size() > i) && collisions[i])
+				SDL_SetRenderDrawColor(r.get(),255,128,128,255);
+			else
+				SDL_SetRenderDrawColor(r.get(),0,0,255,255);
+			SDL_RenderDrawRect(r.get(), &rect);
+			i++;
+		}
 	}
-}
+	std::vector<int> check_collision( std::vector < unsigned char> map_data,
+			unsigned map_width,
+			unsigned map_height) {
+				std::vector<int> ret;
+		for (const auto &cp : collision_pts) {
+			auto p = position + cp;
+			try{
+			if(map_data.at(((int)(p[1])*map_width+(int)(p[0]))*4) == 255) {
+				ret.push_back(true);
+			} else {
+				ret.push_back(false);
+			}
+			} catch (...) {
+				ret.push_back(true);
+			}
+			//std::cout << "p:" << p[0] << ", " << p[1] << ": " << <<  std::endl;
+			
+		}
+		return ret;
+	}
+
+	bool apply_collision(const std::vector<int> &collisions) {
+		for (unsigned i = 0; i < collisions.size(); i++) {
+			auto cmod = collision_mod[i];
+			auto c = collisions[i];
+			if (c) {
+				position = position + cmod;
+				return true;
+			}
+		}
+		return false;
+	}
+
+
+	player_t() {
+		collision_pts = {
+			{-5,-15},
+			{-10, -10},
+			{-10, 10},
+			{-5,15},
+			{5,15},
+			{10, 10},
+			{10, -10},
+			{5,-15}
+		};
+
+		collision_mod = {
+			{0,1},
+			{1, 1},
+			{1, -1},
+			{0,-1},
+			{0,-1},
+			{-1, -1},
+			{-1, 1},
+			{0,1}
+		};
+		velocity = {0.0,0.0};
+	}
+};
+
 
 int main()
 { // int argc, char **argv ) {
-
+	using namespace std;
 	auto window = init_window();
 	auto renderer = init_renderer(window);
 
-	// we will be rendering data onto this:
-	auto game_texture = load_png_texture(renderer, "data/map.png");
+	vector < unsigned char> map_data;
+	unsigned map_width;
+	unsigned map_height;
+	lodepng::decode(map_data, map_width, map_height, "data/map.png"); // load png image to vector (image)
+	auto map_image =  load_png_texture(renderer, "data/map.png");
 
-	std::vector<unsigned char> game_map;
-	unsigned game_width, game_height;
-	unsigned error = lodepng::decode(game_map, game_width, game_height, "data/map.png"); // load png image to vector (image)
-	if (error)
-		throw std::runtime_error(lodepng_error_text(error));
-
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	std::uniform_real_distribution<double> dist(1.0, 10.0);
-
-	vec_t player_p = {100, 100};
-	vec_t player_target_p = {100, 100};
-	std::array<vec_t, 8> player_hit_points;
-	std::array<int, 8> player_hit_points_touch;
-	player_hit_points[1] = {-10, 10};
-	player_hit_points[2] = {-5, 15};
-	player_hit_points[3] = {5, 15};
-	player_hit_points[4] = {10, 10};
-
-	player_hit_points[5] = {10, -10};
-	player_hit_points[6] = {5, -15};
-	player_hit_points[7] = {-5, -15};
-	player_hit_points[0] = {-10, -10};
-
-
-	std::array<vec_t, 8> player_hit_points_dir_to_move;
-	player_hit_points_dir_to_move[1] = {1, -1};
-	player_hit_points_dir_to_move[2] = {0, -1};
-	player_hit_points_dir_to_move[3] = {0, -1};
-	player_hit_points_dir_to_move[4] = {-1, -1};
-
-	player_hit_points_dir_to_move[5] = {-1, 1};
-	player_hit_points_dir_to_move[6] = {0, 1};
-	player_hit_points_dir_to_move[7] = {0, 1};
-	player_hit_points_dir_to_move[0] = {1, 1};
-
+	player_t player;
+	player.position[0] = 150;
+	player.position[1] = 100;
+	
+	int can_jump =  0;
 	for (bool game_active = true; game_active;)
 	{
 		SDL_Event event;
@@ -212,47 +254,48 @@ int main()
 			case SDL_QUIT:
 				game_active = false;
 				break;
-			case SDL_MOUSEMOTION:
-				player_target_p[0] = event.motion.x;
-				player_target_p[1] = event.motion.y;
-				break;
 			}
 		}
+		const Uint8 *kstate = SDL_GetKeyboardState(NULL);
 
 
-		auto next_player_p = player_p + (player_target_p - player_p) / 50;
-		bool collision = false;
+		if (kstate[SDL_SCANCODE_LEFT]) player.position[0]--;
+		if (kstate[SDL_SCANCODE_RIGHT]) player.position[0]++;
+		if (kstate[SDL_SCANCODE_UP]) {
+			if (can_jump>0) {
+				can_jump = 0;
+				player.position[1]--;
+				player.velocity[1] = -8;
+			}
+		}
+//		if (kstate[SDL_SCANCODE_DOWN]) player.position[1]++;
+
+		player.position = player.position + player.velocity;
+		player.velocity = player.velocity + vec_t{0.0, 0.5};
+		if (can_jump > 0) can_jump--;
+
+		auto collisions = player.check_collision(map_data, map_width, map_height);
+		bool colided;
+		auto collisions_check = collisions;
 		do {
-			collision = false;
-			for (size_t i = 0; i < player_hit_points.size(); i++) {
-				auto p = player_hit_points[i] + next_player_p;
-				player_hit_points_touch[i] = 0;
-				try {
-					if (game_map.at(4*((int)(p[1])*game_width+(int)(p[0]))) > 2 ) {
-						player_hit_points_touch[i] = 1;
-					}
-				} catch (...) {
-
-				}
+			colided = player.apply_collision(collisions_check);
+			if (colided) {
+				player.velocity = {0,0};
+				collisions_check = player.check_collision(map_data, map_width, map_height);
 			}
+		} while (colided);
 
-			{
-				for (size_t i = 0; i < player_hit_points.size(); i++) {
-					if (player_hit_points_touch[i] == 1) {
-						collision = true;
-						next_player_p = next_player_p + player_hit_points_dir_to_move[i];
-					}
-				}
-				
-			}
-		} while (collision);
-		player_p = next_player_p;
-
+		if ((collisions[3] == 1) || (collisions[4] == 1)) {
+			can_jump = 3;
+		}
 		SDL_RenderClear(renderer.get());
-		SDL_RenderCopy(renderer.get(), game_texture.get(), NULL, NULL);
-
-		draw_player(renderer.get(), player_p, player_hit_points,player_hit_points_touch);
-
+		
+		SDL_RenderCopy(renderer.get(), map_image.get(), NULL, NULL);
+		
+		player.draw(renderer, collisions);
+		std::cout << "p: " << player.position[0] << " " << player.position[1] <<"         \r";
+		std::cout.flush(); 
+		
 		SDL_RenderPresent(renderer.get());
 		SDL_Delay(10);
 	}
