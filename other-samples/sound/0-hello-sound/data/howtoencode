@@ -1,0 +1,1 @@
+mplayer -vc dummy -vo null -ao pcm:file=trololo.wav -af resample=44100,pan=1:0.5:0.5 -format s16le Mr.\ Trololo\ original\ upload.mp4
