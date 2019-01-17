@@ -145,6 +145,8 @@ class player_t {
 public:
 	vec_t position;
 	vec_t velocity;
+	std::shared_ptr<SDL_Texture> player_image;
+
 	
 	std::vector<vec_t> collision_pts;
 	std::vector<vec_t> collision_mod;
@@ -154,6 +156,7 @@ public:
 		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),20,30};
 		SDL_SetRenderDrawColor(r.get(),255,0,0,255);
 		SDL_RenderDrawRect(r.get(), &rect);
+		SDL_RenderCopy(r.get(),player_image.get(),NULL,&rect);
 		int i =0;
 		for (const auto &cp : collision_pts) {
 			auto p = position + cp;
@@ -166,6 +169,7 @@ public:
 			i++;
 		}
 	}
+	
 	std::vector<int> check_collision( std::vector < unsigned char> map_data,
 			unsigned map_width,
 			unsigned map_height) {
@@ -200,7 +204,9 @@ public:
 	}
 
 
-	player_t() {
+
+	player_t( ) {
+		//this -> player_image =  load_png_texture(renderer, "data/bullet.png");
 		collision_pts = {
 			{-5,-15},
 			{-10, -10},
@@ -233,6 +239,17 @@ int main()
 	auto window = init_window();
 	auto renderer = init_renderer(window);
 
+
+	
+   // SDL_Texture *texture_r;
+	SDL_Rect r;
+
+	 r.w = 10;
+     r.h = 50;
+
+	
+	//texture_r = SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 124, 70);
+
 	vector < unsigned char> map_data;
 	unsigned map_width;
 	unsigned map_height;
@@ -260,7 +277,7 @@ int main()
 
 
 		if ((kstate[SDL_SCANCODE_LEFT])&&(player.position[0]>=10)) player.position[0]--;
-		if ((kstate[SDL_SCANCODE_RIGHT])&& (player.position[0]<=290)) player.position[0]++;
+		if ((kstate[SDL_SCANCODE_RIGHT])&& (player.position[0]<=305)) player.position[0]++; // na półce p = (291,34.5)
 		if (kstate[SDL_SCANCODE_UP]) {
 			if (can_jump>0) {
 				can_jump = 0;
@@ -291,7 +308,18 @@ int main()
 		SDL_RenderClear(renderer.get());
 		
 		SDL_RenderCopy(renderer.get(), map_image.get(), NULL, NULL);
+		player.player_image =  load_png_texture(renderer, "data/bullet.png");
+
+		// ładowanie textury nie powinno być co klatke czyli nie powinoo być w pętli
 		
+
+		// poczatek z tutoriala
+
+		//SDL_SetRenderTarget(renderer.get(), texture_r);
+                SDL_RenderDrawRect(renderer.get(),&r);
+                SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0x00, 0x00, 0x00);
+                SDL_RenderFillRect(renderer.get(), &r);
+		// koniec z tutoriala
 		player.draw(renderer, collisions);
 		std::cout << "p: " << player.position[0] << " " << player.position[1] <<"         \r";
 		std::cout.flush(); 
