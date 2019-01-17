@@ -259,8 +259,8 @@ int main()
 		const Uint8 *kstate = SDL_GetKeyboardState(NULL);
 
 
-		if (kstate[SDL_SCANCODE_LEFT]) player.position[0]--;
-		if (kstate[SDL_SCANCODE_RIGHT]) player.position[0]++;
+		if ((kstate[SDL_SCANCODE_LEFT])&&(player.position[0]>=10)) player.position[0]--;
+		if ((kstate[SDL_SCANCODE_RIGHT])&& (player.position[0]<=290)) player.position[0]++;
 		if (kstate[SDL_SCANCODE_UP]) {
 			if (can_jump>0) {
 				can_jump = 0;
