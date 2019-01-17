@@ -48,7 +48,7 @@ std::shared_ptr<SDL_Window> init_window(const int width = 320, const int height 
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 		throw std::runtime_error(SDL_GetError());
 
-	SDL_Window *win = SDL_CreateWindow("Witaj w Swiecie",
+	SDL_Window *win = SDL_CreateWindow("ToTheRoof",
 									   SDL_WINDOWPOS_UNDEFINED, 
 									   SDL_WINDOWPOS_UNDEFINED,
 									   width, height, SDL_WINDOW_SHOWN);
