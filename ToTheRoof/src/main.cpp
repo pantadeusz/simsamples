@@ -141,6 +141,96 @@ double length(const vec_t &d_)
 	return std::sqrt(d[0] + d[1]);
 }
 
+
+
+class kwadrat
+{
+private:
+	/* std::vector<std::array<unsigned char, 4>> palette {
+    {255, 0, 0, 255},  // red
+    {0, 255, 0, 255},  // green
+	SDL_SetRenderDrawColor(renderer.get(), 0x89, 0x04, 0xB1, 0x00);// fioletowy
+}; */
+public:
+
+SDL_Rect rect;
+
+
+struct colour
+{
+	double r,g,b,a;
+};
+
+
+vec_t position;
+vec_t velocity;
+
+enum type 
+{
+	plus = 1,
+	minus = -1, 
+	death = 0
+};
+
+
+
+kwadrat(/* args */)
+{
+
+	 std::mt19937 rng;
+    rng.seed(std::random_device()());
+    std::uniform_int_distribution<std::mt19937::result_type> los(-1,1);
+
+	this -> type = los(-1,1);
+
+	this -> rect.w = 10; 
+	this -> rect.h = 50;
+
+	if (type == -1) {
+		this -> colour.r = 255; 
+		this -> colour.b = 0; 
+		this -> colour.g = 0; 
+		this -> colour.a = 255;
+		
+	}
+
+	if (type == 1) {
+		this -> colour.r = 0; 
+		this -> colour.b = 255; 
+		this -> colour.g = 0; 
+		this -> colour.a = 255;
+		
+	}
+
+	if (type == 0) {
+		this -> colour.r = 0x89; 
+		this -> colour.b = 0x04; 
+		this -> colour.g = 0xB1; 
+		this -> colour.a = 0x00;
+		
+	}
+	velocity = {0.0,0.0};
+}
+
+void move(int n)
+{
+	this -> position[0]+=n;
+	
+	
+	
+
+}
+
+};
+
+	
+
+
+
+
+
+
+
 class player_t {
 public:
 	vec_t position;
@@ -155,7 +245,7 @@ public:
 		) const {
 		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),20,30};
 		SDL_SetRenderDrawColor(r.get(),255,0,0,255);
-		SDL_RenderDrawRect(r.get(), &rect);
+		//SDL_RenderDrawRect(r.get(), &rect);
 		SDL_RenderCopy(r.get(),player_image.get(),NULL,&rect);
 		int i =0;
 		for (const auto &cp : collision_pts) {
@@ -165,7 +255,7 @@ public:
 				SDL_SetRenderDrawColor(r.get(),255,128,128,255);
 			else
 				SDL_SetRenderDrawColor(r.get(),0,0,255,255);
-			SDL_RenderDrawRect(r.get(), &rect);
+			//SDL_RenderDrawRect(r.get(), &rect);
 			i++;
 		}
 	}
@@ -206,7 +296,7 @@ public:
 
 
 	player_t( ) {
-		//this -> player_image =  load_png_texture(renderer, "data/bullet.png");
+		
 		collision_pts = {
 			{-5,-15},
 			{-10, -10},
@@ -255,10 +345,14 @@ int main()
 	unsigned map_height;
 	lodepng::decode(map_data, map_width, map_height, "data/map.png"); // load png image to vector (image)
 	auto map_image =  load_png_texture(renderer, "data/map.png");
+	
 
 	player_t player;
 	player.position[0] = 150;
 	player.position[1] = 100;
+	kwadrat kw;
+
+	player.player_image =  load_png_texture(renderer, "data/bullet.png");
 	
 	int can_jump =  0;
 	for (bool game_active = true; game_active;)
@@ -283,6 +377,7 @@ int main()
 				can_jump = 0;
 				player.position[1]--;
 				player.velocity[1] = -8;
+				//player.velocity[0] = -1;
 			}
 		}
 //		if (kstate[SDL_SCANCODE_DOWN]) player.position[1]++;
@@ -308,7 +403,7 @@ int main()
 		SDL_RenderClear(renderer.get());
 		
 		SDL_RenderCopy(renderer.get(), map_image.get(), NULL, NULL);
-		player.player_image =  load_png_texture(renderer, "data/bullet.png");
+		
 
 		// ładowanie textury nie powinno być co klatke czyli nie powinoo być w pętli
 		
@@ -316,10 +411,23 @@ int main()
 		// poczatek z tutoriala
 
 		//SDL_SetRenderTarget(renderer.get(), texture_r);
-                SDL_RenderDrawRect(renderer.get(),&r);
-                SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0x00, 0x00, 0x00);
-                SDL_RenderFillRect(renderer.get(), &r);
-		// koniec z tutoriala
+               SDL_RenderDrawRect(renderer.get(),&r);
+              // SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0x00, 0x00, 0x00);
+			   SDL_SetRenderDrawColor(renderer.get(), 0x89, 0x04, 0xB1, 0x00);
+               SDL_RenderFillRect(renderer.get(), &r);
+
+			   //8904B1 fioletowy html
+		// koniec z tutoriala */
+		kw.move(20);
+		SDL_RenderDrawRect(renderer.get(),&kw.rect);
+		SDL_SetRenderDrawColor(renderer.get(), kw.colour.r, kw.colour.g, kw.colour.b, kw.colour.a);
+		SDL_RenderFillRect(renderer.get(), &kw.rect);
+
+		
+		
+
+
+
 		player.draw(renderer, collisions);
 		std::cout << "p: " << player.position[0] << " " << player.position[1] <<"         \r";
 		std::cout.flush(); 
