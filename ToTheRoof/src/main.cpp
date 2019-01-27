@@ -47,7 +47,7 @@
 
 int window_width, window_height; // uwaga zmienne globalne ; 
 
-std::shared_ptr<SDL_Window> init_window(const int width = 350, const int height = 200)
+std::shared_ptr<SDL_Window> init_window(const int width = 350, const int height = 219)
 {
 	window_width = width;
 	window_height = height;
@@ -167,6 +167,8 @@ struct colour
 	int r,g,b,a;
 };
 
+int kara;
+
 
 vec_t position;
 vec_t velocity;
@@ -205,6 +207,8 @@ kwadrat(/* args */)
 		 c.b = 0; 
 		 c.g = 0; 
 		 c.a = 255;
+
+		 kara = -1;
 		
 	}
 
@@ -213,6 +217,7 @@ kwadrat(/* args */)
 		 c.b = 255; 
 		 c.g = 0; 
 		 c.a = 255;
+		 kara = 1;
 		
 	}
 
@@ -221,6 +226,7 @@ kwadrat(/* args */)
 		 c.b = 0x04; 
 		 c.g = 0xB1; 
 		 c.a = 0x00;
+		 //kara = NULL;
 	}
 	velocity = {0.0,0.0};
 }
@@ -228,8 +234,8 @@ kwadrat(/* args */)
 void draw(std::shared_ptr<SDL_Renderer> &r,
 		const std::vector<int> collisions = {}
 		) const {
-		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h}; //oryginalna linijka
-		//SDL_Rect rect = {(int)(position[0]),(int)(position[1]),rect_w,rect_h};
+	//	SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h}; //oryginalna linijka
+		SDL_Rect rect = {(int)(position[0]),(int)(position[1]),rect_w,rect_h};
 		SDL_SetRenderDrawColor(r.get(),c.r,c.b,c.g,c.a);
 		SDL_RenderDrawRect(r.get(), &rect);
 		SDL_RenderFillRect(r.get(), &rect);
@@ -262,6 +268,8 @@ public:
 	vec_t position;
 	vec_t velocity;
 	std::shared_ptr<SDL_Texture> player_image;
+
+	int pkt;
 
 	
 	std::vector<vec_t> collision_pts;
@@ -322,6 +330,8 @@ public:
 
 
 	player_t( ) {
+
+		pkt = 0;
 		
 		collision_pts = {
 			{-5,-15},
@@ -372,20 +382,25 @@ int main()
 	int sufit_w = window_width/kw.rect_w;
 	std::deque<kwadrat> sufit;
 
-	
-	for(int i = 0; i < sufit_w; i++)
+	for(int j=0; j< 10000; j++)
 	{
-		kwadrat kw;
-		kw.position[0]+=(50 * i );
-		sufit.push_back(kw);
-	}
-	
 
+	
+		for(int i = 0; i < sufit_w; i++)
+		{
+			kwadrat kw;
+			kw.position[0]+=(50 * i );
+			sufit.push_back(kw);
+		}
+	
+	}
 	
 
 	cout << (int)kw.t << " " << kw.c.b << " "<< kw.c.g << " "<< kw.c.r << " "<< kw.c.a << "\n";
 
 	player.player_image =  load_png_texture(renderer, "data/bullet.png");
+
+	int n = 0;
 	
 	int can_jump =  0;
 	for (bool game_active = true; game_active;)
@@ -409,8 +424,12 @@ int main()
 			if (can_jump>0) {
 				can_jump = 0;
 				player.position[1]--;
-				player.velocity[1] = -8;
+				player.velocity[1] = -11;
 				//player.velocity[0] = -1;
+				n++;
+				
+				
+				
 			}
 		}
 //		if (kstate[SDL_SCANCODE_DOWN]) player.position[1]++;
@@ -468,11 +487,16 @@ int main()
 		sufit.push_back(new_kw);*/
 		player.draw(renderer, collisions);
 		//kw.draw(renderer, collisions);
+		cout << sufit.size() << "/n";
 		
-		
-		for(int i = 0; i < sufit.size(); i++)
+		for(int i = 0; i < sufit_w; i++)
 		{
-			kwadrat kw = sufit[i];
+			
+			if ((n+i)>=(sufit_w*10000-1)) {
+				n = 0;
+			}
+			
+			kwadrat kw = sufit[i+n];
 			kw.draw(renderer, collisions);
 		}
 		
@@ -483,6 +507,7 @@ int main()
 		
 		SDL_RenderPresent(renderer.get());
 		SDL_Delay(10);
+		
 	}
 	return 0;
 }
