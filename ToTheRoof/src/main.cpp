@@ -228,7 +228,8 @@ kwadrat(/* args */)
 void draw(std::shared_ptr<SDL_Renderer> &r,
 		const std::vector<int> collisions = {}
 		) const {
-		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h};
+		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h}; //oryginalna linijka
+		//SDL_Rect rect = {(int)(position[0]),(int)(position[1]),rect_w,rect_h};
 		SDL_SetRenderDrawColor(r.get(),c.r,c.b,c.g,c.a);
 		SDL_RenderDrawRect(r.get(), &rect);
 		SDL_RenderFillRect(r.get(), &rect);
@@ -375,6 +376,7 @@ int main()
 	for(int i = 0; i < sufit_w; i++)
 	{
 		kwadrat kw;
+		kw.position[0]+=(50 * i );
 		sufit.push_back(kw);
 	}
 	
@@ -460,10 +462,10 @@ int main()
 		
 		
 		
-
+/*
 		kwadrat new_kw; 
 		sufit.pop_front();
-		sufit.push_back(new_kw);
+		sufit.push_back(new_kw);*/
 		player.draw(renderer, collisions);
 		//kw.draw(renderer, collisions);
 		
