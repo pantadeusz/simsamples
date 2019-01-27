@@ -42,9 +42,15 @@
 #include <cstdint>
 #include <vector>
 #include <random>
+#include "randutils.hpp"
+#include <deque>
 
-std::shared_ptr<SDL_Window> init_window(const int width = 320, const int height = 200)
+int window_width, window_height; // uwaga zmienne globalne ; 
+
+std::shared_ptr<SDL_Window> init_window(const int width = 350, const int height = 200)
 {
+	window_width = width;
+	window_height = height;
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 		throw std::runtime_error(SDL_GetError());
 
@@ -153,12 +159,12 @@ private:
 }; */
 public:
 
-SDL_Rect rect;
-
+int rect_w = 50;
+int rect_h = 50;
 
 struct colour
 {
-	double r,g,b,a;
+	int r,g,b,a;
 };
 
 
@@ -173,53 +179,72 @@ enum type
 };
 
 
+colour c;
+
+type t;
+
 
 kwadrat(/* args */)
 {
 
-	 std::mt19937 rng;
-    rng.seed(std::random_device()());
-    std::uniform_int_distribution<std::mt19937::result_type> los(-1,1);
+	// std::mt19937 rng;
+   // rng.seed(std::random_device()());
+    //std::uniform_int_distribution<std::mt19937::result_type> los(-1,1);
+	//int n = los(-1,1);
 
-	this -> type = los(-1,1);
+	randutils::mt19937_rng rng;
 
-	this -> rect.w = 10; 
-	this -> rect.h = 50;
+	int n = rng.uniform(-1,1);
 
-	if (type == -1) {
-		this -> colour.r = 255; 
-		this -> colour.b = 0; 
-		this -> colour.g = 0; 
-		this -> colour.a = 255;
+	type t = static_cast<type>(n);
+
+	 
+
+	if (t == -1) {
+		 c.r = 255; 
+		 c.b = 0; 
+		 c.g = 0; 
+		 c.a = 255;
 		
 	}
 
-	if (type == 1) {
-		this -> colour.r = 0; 
-		this -> colour.b = 255; 
-		this -> colour.g = 0; 
-		this -> colour.a = 255;
+	if (t == 1) {
+		 c.r = 0; 
+		 c.b = 255; 
+		 c.g = 0; 
+		 c.a = 255;
 		
 	}
 
-	if (type == 0) {
-		this -> colour.r = 0x89; 
-		this -> colour.b = 0x04; 
-		this -> colour.g = 0xB1; 
-		this -> colour.a = 0x00;
-		
+	if (t == 0) {
+		 c.r = 0x89; 
+		 c.b = 0x04; 
+		 c.g = 0xB1; 
+		 c.a = 0x00;
 	}
 	velocity = {0.0,0.0};
 }
 
-void move(int n)
-{
-	this -> position[0]+=n;
-	
-	
-	
-
-}
+void draw(std::shared_ptr<SDL_Renderer> &r,
+		const std::vector<int> collisions = {}
+		) const {
+		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h};
+		SDL_SetRenderDrawColor(r.get(),c.r,c.b,c.g,c.a);
+		SDL_RenderDrawRect(r.get(), &rect);
+		SDL_RenderFillRect(r.get(), &rect);
+		
+		int i =0;
+		/*for (const auto &cp : collision_pts) {
+			auto p = position + cp;
+			SDL_Rect rect = {(int)(p[0]-3),(int)(p[1]-3),6,6};
+			if ((collisions.size() > i) && collisions[i])
+				SDL_SetRenderDrawColor(r.get(),c.r,c.b,c.g,c.a);
+			else
+				SDL_SetRenderDrawColor(r.get(),c.r,c.b,c.g,c.a);
+			SDL_RenderDrawRect(r.get(), &rect);
+			i++;
+		}*/
+	}
 
 };
 
@@ -328,17 +353,9 @@ int main()
 	using namespace std;
 	auto window = init_window();
 	auto renderer = init_renderer(window);
-
-
 	
-   // SDL_Texture *texture_r;
-	SDL_Rect r;
 
-	 r.w = 10;
-     r.h = 50;
 
-	
-	//texture_r = SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 124, 70);
 
 	vector < unsigned char> map_data;
 	unsigned map_width;
@@ -351,6 +368,20 @@ int main()
 	player.position[0] = 150;
 	player.position[1] = 100;
 	kwadrat kw;
+	int sufit_w = window_width/kw.rect_w;
+	std::deque<kwadrat> sufit;
+
+	
+	for(int i = 0; i < sufit_w; i++)
+	{
+		kwadrat kw;
+		sufit.push_back(kw);
+	}
+	
+
+	
+
+	cout << (int)kw.t << " " << kw.c.b << " "<< kw.c.g << " "<< kw.c.r << " "<< kw.c.a << "\n";
 
 	player.player_image =  load_png_texture(renderer, "data/bullet.png");
 	
@@ -410,6 +441,13 @@ int main()
 
 		// poczatek z tutoriala
 
+		//SDL_RenderDrawRect(renderer.get(),&r);
+		//SDL_SetRenderDrawColor(renderer.get(), kw.c.r, kw.c.g, kw.c.b, kw.c.a);
+		//SDL_RenderFillRect(renderer.get(), &r);
+		//kw.move(20);
+
+
+/*
 		//SDL_SetRenderTarget(renderer.get(), texture_r);
                SDL_RenderDrawRect(renderer.get(),&r);
               // SDL_SetRenderDrawColor(renderer.get(), 0xFF, 0x00, 0x00, 0x00);
@@ -418,17 +456,26 @@ int main()
 
 			   //8904B1 fioletowy html
 		// koniec z tutoriala */
-		kw.move(20);
-		SDL_RenderDrawRect(renderer.get(),&kw.rect);
-		SDL_SetRenderDrawColor(renderer.get(), kw.colour.r, kw.colour.g, kw.colour.b, kw.colour.a);
-		SDL_RenderFillRect(renderer.get(), &kw.rect);
-
+		
+		
 		
 		
 
-
-
+		kwadrat new_kw; 
+		sufit.pop_front();
+		sufit.push_back(new_kw);
 		player.draw(renderer, collisions);
+		//kw.draw(renderer, collisions);
+		
+		
+		for(int i = 0; i < sufit.size(); i++)
+		{
+			kwadrat kw = sufit[i];
+			kw.draw(renderer, collisions);
+		}
+		
+		
+
 		std::cout << "p: " << player.position[0] << " " << player.position[1] <<"         \r";
 		std::cout.flush(); 
 		
