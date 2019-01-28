@@ -44,6 +44,7 @@
 #include <random>
 #include "randutils.hpp"
 #include <deque>
+#include <cmath>
 
 int window_width, window_height; // uwaga zmienne globalne ; 
 
@@ -228,7 +229,7 @@ kwadrat(/* args */)
 		 c.a = 0x00;
 		 //kara = NULL;
 	}
-	velocity = {0.0,0.0};
+	//velocity = {0.0,0.0};
 }
 
 void draw(std::shared_ptr<SDL_Renderer> &r,
@@ -419,7 +420,7 @@ int main()
 
 
 		if ((kstate[SDL_SCANCODE_LEFT])&&(player.position[0]>=10)) player.position[0]--;
-		if ((kstate[SDL_SCANCODE_RIGHT])&& (player.position[0]<=305)) player.position[0]++; // na półce p = (291,34.5)
+		if ((kstate[SDL_SCANCODE_RIGHT])&& (player.position[0]<=320)) player.position[0]++; // na półce p = (291,34.5)
 		if (kstate[SDL_SCANCODE_UP]) {
 			if (can_jump>0) {
 				can_jump = 0;
@@ -479,15 +480,7 @@ int main()
 		// koniec z tutoriala */
 		
 		
-		
-		
-/*
-		kwadrat new_kw; 
-		sufit.pop_front();
-		sufit.push_back(new_kw);*/
-		player.draw(renderer, collisions);
-		//kw.draw(renderer, collisions);
-		cout << sufit.size() << "/n";
+		//cout << sufit.size() << "\n";
 		
 		for(int i = 0; i < sufit_w; i++)
 		{
@@ -498,7 +491,38 @@ int main()
 			
 			kwadrat kw = sufit[i+n];
 			kw.draw(renderer, collisions);
+
+			// obsługa zderzenia 
+			int odleglosc_x = abs(player.position[0]-kw.position[0]);
+			int odleglosc_y = abs(player.position[1]-kw.position[1]);
+			
+			if ((odleglosc_x<=50)&&(odleglosc_y<=50)) { // ((player.position[0]==kw.position[0])&&(player.position[1]==kw.position[1]))
+				
+				if (kw.kara == NULL) {
+					cout << "koniec gry dotkołeś purpury" << "\n";
+				}
+				
+				else
+				{
+					player.pkt += kw.kara;
+
+					cout << "punkty gracza: " << player.pkt << "\n"; 
+				}
+				
+				
+			}
+			
+
+			
 		}
+		
+/*
+		kwadrat new_kw; 
+		sufit.pop_front();
+		sufit.push_back(new_kw);*/
+		player.draw(renderer, collisions);
+		//kw.draw(renderer, collisions);
+		
 		
 		
 
