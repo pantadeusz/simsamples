@@ -45,6 +45,9 @@
 #include "randutils.hpp"
 #include <deque>
 #include <cmath>
+#include <algorithm> 
+
+using namespace std;
 
 int window_width, window_height; // uwaga zmienne globalne ; 
 
@@ -142,6 +145,8 @@ vec_t operator/(const vec_t &a, const double b)
 {
 	return {a[0] / b, a[1] / b};
 }
+
+
 double length(const vec_t &d_)
 {
 	auto d = d_ * d_;
@@ -160,8 +165,10 @@ private:
 }; */
 public:
 
-int rect_w = 50;
-int rect_h = 50;
+const static int rect_w = 50;
+const static int rect_h = 50;
+
+///std::vector<vec_t>pole;
 
 struct colour
 {
@@ -230,7 +237,31 @@ kwadrat(/* args */)
 		 //kara = NULL;
 	}
 	//velocity = {0.0,0.0};
+	
+	
 }
+void oblicz_pole(std::vector <vec_t> &pole){
+
+		vec_t start_point;
+	 start_point[0] = position[0]-25;
+	 start_point[1] = position[1]-25;
+	
+	for(int i = 0; i < 50; i++)
+	{
+		vec_t temp_point;
+
+		temp_point[0]= start_point[0] + i;
+		
+		for(int j = 0; j < 50; j++)
+		{
+
+			 temp_point[1] = start_point[1] + j;
+			 
+			 pole.push_back(temp_point);
+		}
+		
+	}//*/
+	}
 
 void draw(std::shared_ptr<SDL_Renderer> &r,
 		const std::vector<int> collisions = {}
@@ -273,12 +304,19 @@ public:
 	int pkt;
 
 	
+
+	const static int rect_w = 20;
+	const static int rect_h = 30;
+
+	std::vector<vec_t>pole;
+	
 	std::vector<vec_t> collision_pts;
 	std::vector<vec_t> collision_mod;
 	void draw(std::shared_ptr<SDL_Renderer> &r,
 		const std::vector<int> collisions = {}
 		) const {
-		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),20,30};
+		//SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),20,30};  // oryginalna linijka
+		SDL_Rect rect = {(int)(position[0]-10),(int)(position[1]-15),rect_w,rect_h}; 
 		SDL_SetRenderDrawColor(r.get(),255,0,0,255);
 		//SDL_RenderDrawRect(r.get(), &rect);
 		SDL_RenderCopy(r.get(),player_image.get(),NULL,&rect);
@@ -356,6 +394,29 @@ public:
 			{0,1}
 		};
 		velocity = {0.0,0.0};
+
+	}
+
+	void oblicz_pole(vector <vec_t> &pole){
+
+		vec_t start_point;
+	 start_point[0] = position[0]-25;
+	 start_point[1] = position[1]-25;
+	
+	for(int i = 0; i < rect_w; i++)
+	{
+		vec_t temp_point;
+
+		temp_point[0]= start_point[0] + i;
+		
+		for(int j = 0; j < rect_h; j++)
+		{
+
+			 temp_point[1] = start_point[1] + j;
+			 pole.push_back(temp_point);
+		}
+		
+	}
 	}
 };
 
@@ -383,7 +444,10 @@ int main()
 	int sufit_w = window_width/kw.rect_w;
 	std::deque<kwadrat> sufit;
 
-	for(int j=0; j< 10000; j++)
+	deque<kwadrat>temp_sufit;
+	int ile_kw = 100;
+
+	for(int j=0; j< ile_kw; j++)
 	{
 
 	
@@ -481,24 +545,34 @@ int main()
 		
 		
 		//cout << sufit.size() << "\n";
-		
+		//deque<kwadrat>temp_sufit;
+		bool zderzenie = false;
 		for(int i = 0; i < sufit_w; i++)
 		{
 			
-			if ((n+i)>=(sufit_w*10000-1)) {
+			if ((n+i)>=(sufit_w*ile_kw-1)) {
 				n = 0;
 			}
 			
 			kwadrat kw = sufit[i+n];
 			kw.draw(renderer, collisions);
+			temp_sufit.push_back(kw);
 
-			// obsługa zderzenia 
+			
+		}
+		kwadrat hit_kw;
+
+		for(int i = 0; i<temp_sufit.size();i++)
+		{
+			kwadrat kw = temp_sufit[i];
+
+			/*// obsługa zderzenia 
 			int odleglosc_x = abs(player.position[0]-kw.position[0]);
 			int odleglosc_y = abs(player.position[1]-kw.position[1]);
 			
-			if ((odleglosc_x<=50)&&(odleglosc_y<=50)) { // ((player.position[0]==kw.position[0])&&(player.position[1]==kw.position[1]))
+			if ((odleglosc_x<=35)&&(odleglosc_y<=35)) { // ((player.position[0]==kw.position[0])&&(player.position[1]==kw.position[1]))
 				
-				if (kw.kara == NULL) {
+				if (kw.t == 0) {
 					cout << "koniec gry dotkołeś purpury" << "\n";
 				}
 				
@@ -510,11 +584,91 @@ int main()
 				}
 				
 				
+			}*/
+			////////////////////////////////////////////////
+
+			// obsługa zderzenia 
+
+			
+				
+
+				vector<vec_t> pole_kw;
+				vector<vec_t> pole_pl = {};
+				//temp_sufit[i].oblicz_pole(pole_kw);
+				kw.oblicz_pole(pole_kw);
+
+				//player.oblicz_pole(pole_pl);
+			
+			
+				
+
+				
+				/*for(int j = 0; j < kw.rect_w*kw.rect_h; j++)
+				{
+					
+					for(int k = 0; k < player.rect_w*player.rect_h; k++)
+					{
+						
+						if (pole_kw[j]==pole_pl[k]) {
+							zderzenie = true;
+							hit_kw = kw;
+						}
+
+						if(zderzenie)
+						{
+							pole_kw.clear();
+							pole_pl.clear();
+							break;
+						}
+						
+					}
+
+					if(zderzenie)
+					{
+						pole_kw.clear();
+						pole_pl.clear();
+						break;
+
+					}
+					
+					
+				}
+
+				
+				
+			if(zderzenie)
+			{
+				pole_kw.clear();
+				pole_pl.clear();
+				break;
+
 			}
 			
 
+			pole_kw.clear();
+			pole_pl.clear();*/
 			
+
+
+
 		}
+		if (zderzenie) {
+			if (hit_kw.t == 0) {
+					cout << "koniec gry dotkołeś purpury" << "\n";
+				}
+				
+				else
+				{
+					player.pkt += hit_kw.kara;
+
+					cout << "punkty gracza: " << player.pkt << "\n"; 
+				}
+		}
+
+		
+		
+		
+		temp_sufit.clear();
 		
 /*
 		kwadrat new_kw; 
@@ -530,8 +684,11 @@ int main()
 		std::cout.flush(); 
 		
 		SDL_RenderPresent(renderer.get());
+
 		SDL_Delay(10);
 		
-	}
-	return 0;
+	
+	
+}
+return 0;
 }
