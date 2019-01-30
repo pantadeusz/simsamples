@@ -429,6 +429,7 @@ int main()
 	using namespace std;
 	auto window = init_window();
 	auto renderer = init_renderer(window);
+	int n = 0;
 	
 
 
@@ -472,7 +473,7 @@ int main()
 
 	player.player_image =  load_png_texture(renderer, "data/bullet.png");
 
-	int n = 0;
+	
 	
 	int can_jump =  0;
 	for (bool game_active = true; game_active;)
@@ -496,7 +497,7 @@ int main()
 			if (can_jump>0) {
 				can_jump = 0;
 				player.position[1]--;
-				player.velocity[1] = -11;
+				player.velocity[1] = -13;
 				//player.velocity[0] = -1;
 				n++;
 				
@@ -554,13 +555,13 @@ int main()
 		//cout << sufit.size() << "\n";
 		//deque<kwadrat>temp_sufit;
 		bool zderzenie = false;
-		for(int i = 0; i < sufit_w*5; i++)
+		for(int i = 0; i < sufit_w*3; i++)
 		{
 			
 			
 			
 			kwadrat kw = sufit[i+n];
-			kw.draw(renderer, collisions);
+			//kw.draw(renderer, collisions);
 			temp_sufit.push_back(kw);
 
 			
@@ -591,20 +592,21 @@ int main()
 				
 				for(int j = 0; j < kw.rect_w*kw.rect_h; j++)
 				{
-					
+					 
 					for(int k = 0; k < player.rect_w*player.rect_h; k++)
 					{
 						
 						if ((pole_kw[j][0]==pole_pl[k][0])&&(pole_kw[j][1]==pole_pl[k][1])) {
 							zderzenie = true;
 							hit_kw = kw;
+							break;
 						}
 
 						
 						
 					}
 
-					
+					if(zderzenie)break;
 					
 					
 				}
@@ -623,7 +625,8 @@ int main()
 		}
 		if (zderzenie) {
 			if (hit_kw.t == 0) {
-					cout << "koniec gry dotkołeś purpury" << "\n";
+					cout << "koniec gry dotkołeś purpury zdobyłeś : " << player.pkt << "\n";
+					player.pkt = 0 ;
 				}
 				
 				else
@@ -632,6 +635,8 @@ int main()
 
 					cout << "punkty gracza: " << player.pkt << "\n"; 
 				}
+
+				player.position[0];
 
 				//pole_kw.clear();
 				//pole_pl.clear();
@@ -642,22 +647,35 @@ int main()
 		
 		
 		
-		temp_sufit.clear();
+		
 		
 /*
 		kwadrat new_kw; 
 		sufit.pop_front();
 		sufit.push_back(new_kw);*/
-		player.draw(renderer, collisions);
+		
 		//kw.draw(renderer, collisions);
 		
 		
 		
 
 		std::cout << "p: " << player.position[0] << " " << player.position[1] <<"         \r";
+		
+
+		
+		for(int  i = 0; i < temp_sufit.size(); i++)
+		{
+			player.draw(renderer, collisions);
+			temp_sufit[i].draw(renderer, collisions);
+		}
+
 		std::cout.flush(); 
 		
 		SDL_RenderPresent(renderer.get());
+		
+
+
+		temp_sufit.clear();
 
 		SDL_Delay(10);
 		
