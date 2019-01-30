@@ -191,7 +191,7 @@ enum type
 
 colour c;
 
-type t;
+int t;
 
 
 kwadrat(/* args */)
@@ -206,7 +206,7 @@ kwadrat(/* args */)
 
 	int n = rng.uniform(-1,1);
 
-	type t = static_cast<type>(n);
+	 t = static_cast<type>(n);
 
 	 
 
@@ -241,6 +241,7 @@ kwadrat(/* args */)
 	
 }
 void oblicz_pole(std::vector <vec_t> &pole){
+	pole.clear();
 
 		vec_t start_point;
 	 start_point[0] = position[0]-25;
@@ -398,21 +399,23 @@ public:
 	}
 
 	void oblicz_pole(vector <vec_t> &pole){
+		pole.clear();
 
 		vec_t start_point;
 	 start_point[0] = position[0]-25;
 	 start_point[1] = position[1]-25;
 	
-	for(int i = 0; i < rect_w; i++)
+	for(int i = 0; i < 50; i++)
 	{
 		vec_t temp_point;
 
 		temp_point[0]= start_point[0] + i;
 		
-		for(int j = 0; j < rect_h; j++)
+		for(int j = 0; j < 50; j++)
 		{
 
 			 temp_point[1] = start_point[1] + j;
+			 
 			 pole.push_back(temp_point);
 		}
 		
@@ -445,7 +448,7 @@ int main()
 	std::deque<kwadrat> sufit;
 
 	deque<kwadrat>temp_sufit;
-	int ile_kw = 100;
+	int ile_kw = 100000;
 
 	for(int j=0; j< ile_kw; j++)
 	{
@@ -456,12 +459,16 @@ int main()
 			kwadrat kw;
 			kw.position[0]+=(50 * i );
 			sufit.push_back(kw);
-		}
+		} 
+
+		
 	
 	}
+
+	cout << "sufit ma długość : " << sufit.size() << "\n";
 	
 
-	cout << (int)kw.t << " " << kw.c.b << " "<< kw.c.g << " "<< kw.c.r << " "<< kw.c.a << "\n";
+	cout << kw.t << " " << kw.c.b << " "<< kw.c.g << " "<< kw.c.r << " "<< kw.c.a << "\n";
 
 	player.player_image =  load_png_texture(renderer, "data/bullet.png");
 
@@ -547,12 +554,10 @@ int main()
 		//cout << sufit.size() << "\n";
 		//deque<kwadrat>temp_sufit;
 		bool zderzenie = false;
-		for(int i = 0; i < sufit_w; i++)
+		for(int i = 0; i < sufit_w*5; i++)
 		{
 			
-			if ((n+i)>=(sufit_w*ile_kw-1)) {
-				n = 0;
-			}
+			
 			
 			kwadrat kw = sufit[i+n];
 			kw.draw(renderer, collisions);
@@ -566,26 +571,7 @@ int main()
 		{
 			kwadrat kw = temp_sufit[i];
 
-			/*// obsługa zderzenia 
-			int odleglosc_x = abs(player.position[0]-kw.position[0]);
-			int odleglosc_y = abs(player.position[1]-kw.position[1]);
 			
-			if ((odleglosc_x<=35)&&(odleglosc_y<=35)) { // ((player.position[0]==kw.position[0])&&(player.position[1]==kw.position[1]))
-				
-				if (kw.t == 0) {
-					cout << "koniec gry dotkołeś purpury" << "\n";
-				}
-				
-				else
-				{
-					player.pkt += kw.kara;
-
-					cout << "punkty gracza: " << player.pkt << "\n"; 
-				}
-				
-				
-			}*/
-			////////////////////////////////////////////////
 
 			// obsługa zderzenia 
 
@@ -597,56 +583,39 @@ int main()
 				//temp_sufit[i].oblicz_pole(pole_kw);
 				kw.oblicz_pole(pole_kw);
 
-				//player.oblicz_pole(pole_pl);
+				player.oblicz_pole(pole_pl);
 			
 			
 				
 
 				
-				/*for(int j = 0; j < kw.rect_w*kw.rect_h; j++)
+				for(int j = 0; j < kw.rect_w*kw.rect_h; j++)
 				{
 					
 					for(int k = 0; k < player.rect_w*player.rect_h; k++)
 					{
 						
-						if (pole_kw[j]==pole_pl[k]) {
+						if ((pole_kw[j][0]==pole_pl[k][0])&&(pole_kw[j][1]==pole_pl[k][1])) {
 							zderzenie = true;
 							hit_kw = kw;
 						}
 
-						if(zderzenie)
-						{
-							pole_kw.clear();
-							pole_pl.clear();
-							break;
-						}
+						
 						
 					}
 
-					if(zderzenie)
-					{
-						pole_kw.clear();
-						pole_pl.clear();
-						break;
-
-					}
+					
 					
 					
 				}
 
 				
-				
-			if(zderzenie)
-			{
-				pole_kw.clear();
-				pole_pl.clear();
-				break;
-
-			}
+				//pole_kw.clear();
+				//pole_pl.clear();
+			
 			
 
-			pole_kw.clear();
-			pole_pl.clear();*/
+			
 			
 
 
@@ -663,6 +632,11 @@ int main()
 
 					cout << "punkty gracza: " << player.pkt << "\n"; 
 				}
+
+				//pole_kw.clear();
+				//pole_pl.clear();
+
+				zderzenie = false;
 		}
 
 		
