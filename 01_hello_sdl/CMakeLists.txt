@@ -12,14 +12,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${sdldemo_SOURCE_DIR}/cmake")
 
 find_package(SDL2 REQUIRED)
-find_package (Threads)
 
 include_directories(${SDL2_INCLUDE_DIRS})
-
-include_directories(SYSTEM ${OpenMP_INCLUDE_PATH})
 include_directories("${PROJECT_SOURCE_DIR}/src")
 
 file(GLOB_RECURSE sdldemo_SOURCES "src/*.cpp")

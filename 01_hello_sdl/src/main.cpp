@@ -26,7 +26,7 @@
     }                                                                          \
   }
 
-int main(int argc, char **argv) {
+int main(int , char **) {
   using namespace std;
   using namespace std::chrono;
   const int width = 640;
@@ -43,7 +43,8 @@ int main(int argc, char **argv) {
       window, -1, SDL_RENDERER_ACCELERATED); // SDL_RENDERER_PRESENTVSYNC
   errcheck(renderer == nullptr);
 
-  milliseconds dt = 15ms;
+  //auto dt = 15ms;
+  milliseconds dt(15);
 
   steady_clock::time_point current_time = steady_clock::now(); // remember current time
   for (bool game_active = true; game_active;) {
