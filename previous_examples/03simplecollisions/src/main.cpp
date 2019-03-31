@@ -258,7 +258,24 @@ int main()
 		}
 		const Uint8 *kstate = SDL_GetKeyboardState(NULL);
 
+		if (kstate[SDL_SCANCODE_SPACE]) {
+			double r= 20;
+			for (int y = -r; y < r; y++)
+			for (int x = -r; x < r; x++)
+			{	
+				if (std::sqrt(x*x+y*y) < r) {
+					try {
+						map_data.at(((int)((y + player.position[1]))*map_width+x+(int)(player.position[0]) )*4)
+						= 0;
+						
+						//map_image.at(y*map_width+x) = 0;
+					} catch(...) {}
+				}
+			}
+			SDL_UpdateTexture(map_image.get(), NULL, map_data.data(), map_width * sizeof(uint32_t));
 
+		}
+		
 		if (kstate[SDL_SCANCODE_LEFT]) player.position[0]--;
 		if (kstate[SDL_SCANCODE_RIGHT]) player.position[0]++;
 		if (kstate[SDL_SCANCODE_UP]) {

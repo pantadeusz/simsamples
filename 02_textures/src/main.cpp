@@ -281,7 +281,7 @@ calculate_next_game_state(const game_state_t &previous_state,
   { 0.25,-0.5}
   };
 
-  auto is_collision =  [&](position_t p, int i) {
+  auto is_collision =  [](position_t p, int i) {
     double x = p[0]+hit_points[i][0];
     double y = p[1]+hit_points[i][1];
     return (ret.world->t[y][x] == '#');
