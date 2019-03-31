@@ -264,32 +264,38 @@ calculate_next_game_state(const game_state_t &previous_state,
     auto vnorm = p.velocity;
     if (~vnorm > 0)
       vnorm = vnorm / ~vnorm;
-    p.acceleration = (p.intention.move * 10.0) + ((p.velocity * p.velocity * vnorm) * -1.1);
+    p.acceleration = (p.intention.move * 10.0) - ((p.velocity * p.velocity * vnorm) * 1.1);
     p.velocity = p.velocity + p.acceleration * dt;
     p.position = p.position + (p.velocity * dt) + (p.velocity * p.acceleration * dt * dt * 0.5);
   }
 
+
+  vector < position_t > hit_points = {
+  {-0.25,-0.5},
+  {-0.4,-0.4},
+  {-0.4,0.4},
+  {-0.25,0.5},
+  { 0.25,0.5},
+  { 0.4,0.4},
+  { 0.4,-0.4},
+  { 0.25,-0.5}
+  };
+
+  auto is_collision =  [&](position_t p, int i) {
+    double x = p[0]+hit_points[i][0];
+    double y = p[1]+hit_points[i][1];
+    return (ret.world->t[y][x] == '#');
+  };
+
   // kolizje
   for (unsigned int i = 0; i < ret.players.size(); i++) {
-    auto &p = ret.players[i];
-    if ((p.position[0] < 0) || (p.position[0] >= ret.world->t.at(0).size())) {
-      // dobicie po osi X dla krawedzi mapy
-      p = previous_state.players[i];
-      p.velocity[0] = p.velocity[0] * -0.6;
-    } else if ((p.position[1] < 0) || (p.position[1] >= ret.world->t.size())) {
-      // odbicie po osi Y dla krawedzi mapy
-      p = previous_state.players[i];
-      p.velocity[1] = p.velocity[1] * -0.6;
-    } else {
-      // kolizja z obiektem z gry
-      if (ret.world->t.at(p.position[1]).at(p.position[0]) == '#') {
-        //p.velocity = p.velocity * -0.1;
-        auto v_one = p.velocity/~p.velocity;
-        auto d_one = (p.position-position_t{0.5,0.5})-position_t{(int)(p.position[0]),(int)(p.position[1])};
-        auto cp = position_t{(int)(p.position[0]),(int)(p.position[1])};
-        d_one = d_one/~d_one;
-        p = previous_state.players[i];
-        p.velocity = ((v_one+d_one)/~(v_one+d_one))*(~p.velocity*0.9);
+    for (int k = 0; k < hit_points.size(); k++) 
+    {
+      if (is_collision(ret.players[i].position, k)) {
+        ret.players[i] = previous_state.players[i];
+        ret.players[i].velocity = {0.0,0.0};
+        cout << "collision: " << k << endl;
+        break;
       }
     }
   }
