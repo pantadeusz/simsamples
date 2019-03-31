@@ -26,8 +26,10 @@
 
 // check for errors
 #define errcheck(e)                                                            \
-  if (e)                                                                       \
-    throw std::invalid_argument(SDL_GetError());
+  {                                                                            \
+    if (e)                                                                     \
+      throw std::invalid_argument(SDL_GetError());                             \
+  }
 
 namespace gameengine {
 using namespace std; // only in this namespace!!
@@ -42,15 +44,17 @@ const int tile_size[] = {32, 32};
 ///////////////////     STRUKTURY                    //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+using position_t = std::array<double, 2>;
+
 enum event_enum { NONE, QUIT };
 struct player_intention_t {
-  std::array<double, 2> move;
+  position_t move;
 };
 
 struct player_t {
-  std::array<double, 2> acceleration;
-  std::array<double, 2> velocity;
-  std::array<double, 2> position;
+  position_t acceleration;
+  position_t velocity;
+  position_t position;
   player_intention_t intention;
 
   std::shared_ptr<SDL_Texture> texture;
@@ -75,28 +79,30 @@ struct game_state_t {
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////   PRZECIĄŻONE OPERATORY          //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-std::array<double, 2> operator/(const std::array<double, 2> &e, double s) {
+position_t operator/(const position_t &e, double s) {
   return {e[0] / s, e[1] / s};
 }
 
-std::array<double, 2> operator*(const std::array<double, 2> &e, double s) {
+position_t operator*(const position_t &e, double s) {
   return {e[0] * s, e[1] * s};
 }
 
-std::array<double, 2> operator+(const std::array<double, 2> &e,
-                                const std::array<double, 2> &s) {
+position_t operator+(const position_t &e, const position_t &s) {
   return {e[0] + s[0], e[1] + s[1]};
 }
 
-std::array<double, 2> operator*(const std::array<double, 2> &e,
-                                const std::array<double, 2> &s) {
+position_t operator-(const position_t &e, const position_t &s) {
+  return {e[0] - s[0], e[1] - s[1]};
+}
+
+position_t operator*(const position_t &e, const position_t &s) {
   return {e[0] * s[0], e[1] * s[1]};
 }
 
 /**
  * @brief Długość wektora
  */
-double operator~(const std::array<double, 2> &e) {
+double operator~(const position_t &e) {
   return std::sqrt(e[0] * e[0] + e[1] * e[1]);
 }
 
@@ -107,8 +113,6 @@ double operator~(const std::array<double, 2> &e) {
 struct hardware_objects_t {
   SDL_Renderer *renderer;
   SDL_Window *window;
-  std::vector<SDL_GameController *> game_controllers;
-  std::vector<SDL_Joystick *> joysticks;
 };
 
 /**
@@ -120,7 +124,7 @@ shared_ptr<hardware_objects_t> init_hardware_subsystems(int width, int height,
   errcheck(SDL_Init(SDL_INIT_EVERYTHING) != 0);
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
   auto window = SDL_CreateWindow(
-      "My Next Superawesome Game", SDL_WINDOWPOS_UNDEFINED,
+      "Textures example", SDL_WINDOWPOS_UNDEFINED,
       SDL_WINDOWPOS_UNDEFINED, width, height,
       SDL_WINDOW_SHOWN | (fscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
   errcheck(window == nullptr);
@@ -132,26 +136,9 @@ shared_ptr<hardware_objects_t> init_hardware_subsystems(int width, int height,
   objects->renderer = renderer;
   objects->window = window;
 
-  SDL_GameControllerAddMappingsFromFile("data/gamecontrollerdb.txt");
-  for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-    SDL_GameController *controller = NULL;
-    SDL_Joystick *joystick = NULL;
-    if (SDL_IsGameController(i)) {
-      if ((controller = SDL_GameControllerOpen(i)) != nullptr)
-        objects->game_controllers.push_back(controller);
-    } else {
-      if ((joystick = SDL_JoystickOpen(i)) != nullptr)
-        objects->joysticks.push_back(joystick);
-    }
-  }
-
   // opakowujemy wszystko w smartpointer dzieki czemu nie musimy pamietac o
   // zwalnianiu zasobow
   return shared_ptr<hardware_objects_t>(objects, [](auto o) {
-    for (auto *j : o->joysticks)
-      SDL_JoystickClose(j);
-    for (auto *c : o->game_controllers)
-      SDL_GameControllerClose(c);
     SDL_DestroyRenderer(o->renderer);
     SDL_DestroyWindow(o->window);
     SDL_Quit();
@@ -161,17 +148,18 @@ shared_ptr<hardware_objects_t> init_hardware_subsystems(int width, int height,
 
 /**
  * @brief Ładuje teksturę z pliku png
- * 
+ *
  */
 std::shared_ptr<SDL_Texture> load_texture(SDL_Renderer *renderer,
                                           const std::string fname) {
   // SDL_Surface *bmp = SDL_LoadBMP( fname.c_str() );
   std::vector<unsigned char> image;
   unsigned width, height;
-  unsigned error = lodepng::decode(image, width, height, fname);
+  errcheck(lodepng::decode(image, width, height, fname));
 
-  SDL_Surface *bitmap = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_RGBA32);                               
-  std::copy(image.begin(), image.end(), (unsigned char *)bitmap->pixels );
+  SDL_Surface *bitmap = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32,
+                                                       SDL_PIXELFORMAT_RGBA32);
+  std::copy(image.begin(), image.end(), (unsigned char *)bitmap->pixels);
   errcheck(bitmap == nullptr);
 
   SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, bitmap);
@@ -188,21 +176,14 @@ std::shared_ptr<SDL_Texture> load_texture(SDL_Renderer *renderer,
  * @brief Ładowanie planszy oraz przygotowanie obiektu gracza
  *
  */
-game_state_t load_level(shared_ptr<hardware_objects_t> hardware) {
+game_state_t load_level() {
   game_state_t game_state;
   game_state.players.push_back({.acceleration = {0, 0},
                                 .velocity = {0, 0},
                                 .position = {1, 1},
-                                .intention = {0, 0}});
-  if (hardware->joysticks.size() > 0) {
-    game_state.players.push_back({.acceleration = {0, 0},
-                                  .velocity = {0, 0},
-                                  .position = {2, 1},
-                                  .intention = {0, 0}});
-  }
-
-
-  // ładowanie mapy                              
+                                .intention = {0, 0},
+                                .texture = nullptr});
+  // ładowanie mapy
   game_state.world = make_shared<game_map_t>();
   std::ifstream t("data/level1.txt"); // załadujmy plik
   std::istringstream iss(std::string((std::istreambuf_iterator<char>(t)),
@@ -252,14 +233,6 @@ process_input(shared_ptr<hardware_objects_t> hw,
   if (kstate[SDL_SCANCODE_DOWN])
     intentions[0].move[1] += 1.0;
 
-  // jesli mamy jakiekolwiek joysticki, to obsługujemy je
-  for (unsigned i = 0; i < hw->joysticks.size(); i++) {
-    intentions[i+1].move[0] +=
-        (double)SDL_JoystickGetAxis(hw->joysticks[i], 0) / 32767.0;
-    intentions[i+1].move[1] +=
-        (double)SDL_JoystickGetAxis(hw->joysticks[i], 1) / 32767.0;
-  }
-
   // jeśli nie działa przypisanie strukturalne, zastosuj
   // for (auto plr : intentions) { auto &p = plr.second;
   for (auto &[i, p] : intentions) {
@@ -279,7 +252,7 @@ calculate_next_game_state(const game_state_t &previous_state,
   game_state_t ret = previous_state;
   // przetwarzamy intencje (o ile jakieś są)
   for (auto &player : ret.players) {
-      player.intention = {0,0};
+    player.intention = {0, 0};
   }
   for (auto &intent : intentions) {
     if (intent.first < ret.players.size())
@@ -291,26 +264,32 @@ calculate_next_game_state(const game_state_t &previous_state,
     auto vnorm = p.velocity;
     if (~vnorm > 0)
       vnorm = vnorm / ~vnorm;
-    p.acceleration =
-        (p.intention.move * 10.0) + ((p.velocity * p.velocity * vnorm) * -1.1);
-    p.position = p.position + (p.velocity * dt) +
-                 (p.velocity * p.acceleration * dt * dt * 0.5);
+    p.acceleration = (p.intention.move * 10.0) + ((p.velocity * p.velocity * vnorm) * -1.1);
     p.velocity = p.velocity + p.acceleration * dt;
+    p.position = p.position + (p.velocity * dt) + (p.velocity * p.acceleration * dt * dt * 0.5);
   }
 
   // kolizje
-  for (int i = 0; i < ret.players.size(); i++) {
+  for (unsigned int i = 0; i < ret.players.size(); i++) {
     auto &p = ret.players[i];
     if ((p.position[0] < 0) || (p.position[0] >= ret.world->t.at(0).size())) {
+      // dobicie po osi X dla krawedzi mapy
       p = previous_state.players[i];
       p.velocity[0] = p.velocity[0] * -0.6;
     } else if ((p.position[1] < 0) || (p.position[1] >= ret.world->t.size())) {
+      // odbicie po osi Y dla krawedzi mapy
       p = previous_state.players[i];
       p.velocity[1] = p.velocity[1] * -0.6;
     } else {
+      // kolizja z obiektem z gry
       if (ret.world->t.at(p.position[1]).at(p.position[0]) == '#') {
+        //p.velocity = p.velocity * -0.1;
+        auto v_one = p.velocity/~p.velocity;
+        auto d_one = (p.position-position_t{0.5,0.5})-position_t{(int)(p.position[0]),(int)(p.position[1])};
+        auto cp = position_t{(int)(p.position[0]),(int)(p.position[1])};
+        d_one = d_one/~d_one;
         p = previous_state.players[i];
-        p.velocity = p.velocity * -0.1;
+        p.velocity = ((v_one+d_one)/~(v_one+d_one))*(~p.velocity*0.9);
       }
     }
   }
@@ -372,8 +351,9 @@ int main(int, char **) {
   using namespace std::chrono;
 
   auto hardware = gameengine::init_hardware_subsystems(640, 480, false);
-  auto level = gameengine::load_level(hardware);
-  for (auto &p: level.players) p.texture = gameengine::load_texture(hardware->renderer, "data/player.png");
+  auto level = gameengine::load_level();
+  for (auto &p : level.players)
+    p.texture = gameengine::load_texture(hardware->renderer, "data/player.png");
   // auto dt = 15ms;
   milliseconds dt(15);
 
