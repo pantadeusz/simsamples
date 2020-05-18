@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <set>
@@ -44,7 +45,7 @@ public:
   double &y() { return operator[](1); }
   double x() const { return operator[](0); }
   double y() const { return operator[](1); }
-  double len() const {return std::sqrt(x()*x() + y()*y());}
+  double len() const { return std::sqrt(x() * x() + y() * y()); }
 };
 
 point_t operator+(const point_t &a, const point_t &b) {
@@ -62,110 +63,152 @@ point_t operator*(const point_t &a, const double b) {
 point_t operator/(const point_t &a, const double b) {
   return {a[0] / b, a[1] / b};
 }
-
+///////////////////////////////////////////////////////////////////////////////////
 struct player_t {
   point_t pos;
   point_t v;
   point_t a;
 };
 
-struct game_world_t {
-  player_t player;
-};
+struct game_map_t {
+  std::vector<unsigned char> terrain;
+  unsigned w, h; // width, height;
+  unsigned get(int x, int y) const {
+    if (x < 0)
+      throw std::invalid_argument("x too small");
+    if (x >= w)
+      throw std::invalid_argument("x too big");
+    if (y < 0)
+      throw std::invalid_argument("y too small");
+    if (y >= h)
+      throw std::invalid_argument("y too big");
+    return *(uint32_t *)&terrain.data()[(y * w + x) * 4];
+  }
+  unsigned &get(int x, int y) {
+    if (x < 0)
+      throw std::invalid_argument("x too small");
+    if (x >= w)
+      throw std::invalid_argument("x too big");
+    if (y < 0)
+      throw std::invalid_argument("y too small");
+    if (y >= h)
+      throw std::invalid_argument("y too big");
+    return *(uint32_t *)&terrain.data()[(y * w + x) * 4];
+  }
+  unsigned get(point_t p) const {
+    point_t pp = p_to_map(p);
+    return get((int)pp[0], (int)pp[1]);
+  }
+  point_t p_to_map(point_t p) const { return {p[0], h - p[1] - 1}; }
+  point_t map_to_p(point_t p) const { return {p[0], 1.0 - p[1] + h}; }
 
-struct graphic_data_t {
-  int width = 640;
-  int height = 480;
-  std::vector<unsigned char> game_map;
-  unsigned game_map_width, game_map_height;
-  unsigned get_color(int x, int y) const {
-    return *(unsigned *)&game_map[y*game_map_width+x];
+  void draw_p_hole(point_t pos, double r) {
+    auto p = p_to_map(pos);
+    std::cout << pos[0] << " " << pos[1] << std::endl;
+    draw_hole(p, r);
+  }
+  void draw_hole(point_t p, double r) {
+    std::cout << "                       " << p[0] << " " << p[1] << " " << r
+              << std::endl;
+    unsigned *data = (unsigned *)terrain.data();
+    for (double x = 0; x < r; x++) {
+      for (double y = 0; y < r; y++) {
+        if ((x * x + y * y) < r) {
+          int xx, yy;
+          int p0 = p[0], p1 = p[1];
+          xx = p0 + x;
+          yy = p1 + y;
+          if ((xx >= 0) && (xx < w) && (yy > 0) && (yy < h))
+            data[(yy * w + xx)] = 0;
+          xx = p0 - x;
+          yy = p1 + y;
+          if ((xx >= 0) && (xx < w) && (yy > 0) && (yy < h))
+            data[(yy * w + xx)] = 0;
+          xx = p0 + x;
+          yy = p1 - y;
+          if ((xx >= 0) && (xx < w) && (yy > 0) && (yy < h))
+            data[(yy * w + xx)] = 0;
+          xx = p0 - x;
+          yy = p1 - y;
+          if ((xx >= 0) && (xx < w) && (yy > 0) && (yy < h))
+            data[(yy * w + xx)] = 0;
+        }
+      }
+    }
   }
 };
 
+struct game_world_t {
+  player_t player;
+  std::shared_ptr<game_map_t> terrain;
+};
 
-point_t game_coord_to_map_coord(point_t p, int width, int height) {
-  return {p[0], height - p[1] - 1};
-}
-game_world_t new_game_state(const graphic_data_t &graphic_data ) {
+struct graphic_data_t {
+  int width = 1024;
+  int height = 768;
+};
+
+game_world_t new_game_state(const game_map_t &graphic_data) {
   game_world_t game;
-  game.player.pos[0] = graphic_data.game_map_width/2;
+  game.terrain = std::make_shared<game_map_t>(graphic_data);
+  game.player.pos[0] = game.terrain->w / 2;
   game.player.pos[1] = 0;
 
   game.player.v[0] = 0;
   game.player.v[1] = 0;
 
-  
-  for (int y = 0; y < graphic_data.game_map_width/2-1; y++) {
-    
-    if ((graphic_data.get_color(game.player.pos[0],y+graphic_data.game_map_width/2) & 0x0ff) == 0) {
-      game.player.pos[1] = -y+graphic_data.game_map_width/2;
-      std::cout << game.player.pos[0] << " " << game.player.pos[1] << std::endl;
+  // for (int y = 3; y < game.terrain->h-3; y++) {
+  //  for (int x = 308; x < 309; x++) {
+  //  game.player.pos = {(double)x, (double)y};
+  //  std::cout << " " << std::hex << std::setw(8) <<
+  //  (int)((game.terrain->get(game.player.pos)));
+  //  }
+  //  std::cout << std::endl;
+  //}
+
+  for (int y = 3; y < game.terrain->h - 3; y++) {
+    game.player.pos = {(double)(308), (double)y};
+
+    std::cout << " " << std::hex << std::setw(8)
+              << (int)((game.terrain->get(game.player.pos))) << std::endl;
+
+    if ((game.terrain->get(game.player.pos) & 0x0ff000000) < 0x00f000000) {
+      std::cout << "FOUND: " << game.player.pos[0] << " " << game.player.pos[1]
+                << std::endl;
+      game.player.pos[1] += 3;
       break;
     }
-  } 
+  }
+  std::cout << "Start at: " << game.player.pos[0] << " " << game.player.pos[1]
+            << std::endl;
 
   return game;
 }
 
-game_world_t do_simulation_step(const game_world_t &old_world,const graphic_data_t &graphic_data, 
+game_world_t do_simulation_step(const game_world_t &old_world,
                                 std::chrono::milliseconds dt_) {
   auto new_world = old_world;
-  //new_world.player.pos =
-  //    new_world.player.pos + (new_world.player.v * (dt.count() / 1000.0));
   double dt = (dt_.count() / 1000.0);
   double coeff = 0.2;
-  new_world.player.pos = old_world.player.pos + old_world.player.v*dt + (old_world.player.a*dt*dt)/2;
-  new_world.player.v = old_world.player.v + old_world.player.a*dt;
-  
-  new_world.player.v = new_world.player.v - point_t{0.0,500.0*dt};
-  new_world.player.v = new_world.player.v - new_world.player.v*coeff*dt;
+  new_world.player.pos = old_world.player.pos + old_world.player.v * dt +
+                         (old_world.player.a * dt * dt) / 2;
+  new_world.player.v = old_world.player.v + old_world.player.a * dt;
 
-  auto map_pos = game_coord_to_map_coord(
-      new_world.player.pos,
-      graphic_data.game_map_width,
-      graphic_data.game_map_height);
-  if ((graphic_data.get_color(map_pos[0],map_pos[1]) & 0x0ff) >= 10) {
+  new_world.player.v = new_world.player.v - point_t{0.0, 500.0 * dt};
+  new_world.player.v = new_world.player.v - new_world.player.v * coeff * dt;
+
+  if ((old_world.terrain->get(new_world.player.pos) & 0x0ff000000) >=
+      0x0f000000) {
     new_world.player.pos = old_world.player.pos;
-    new_world.player.a = {0,0};
-    new_world.player.v = {0,-(0.9)*new_world.player.v[1]};
+    new_world.player.a = {0, 0};
+    new_world.player.v = {0, -(0.9) * new_world.player.v[1]};
   }
 
-  std::cout << new_world.player.pos[0] << " " << new_world.player.pos[1] << std::endl;
+  // std::cout << new_world.player.pos[0] << " " << new_world.player.pos[1] <<
+  // std::hex << std::setw(8) << old_world.terrain->get(new_world.player.pos)
+  //          << std::endl;
   return new_world;
 }
-
-
-
-
-void draw_hole(point_t pos, double r, std::vector<unsigned char> &game_map, int width, int height ) {
-  // [(y*width+x)*4]
-  auto p = game_coord_to_map_coord(pos,width, height);
-  std::cout << p[0] << " " << p[1] << std::endl;
-  for (double x = 0; x < r; x++) {
-  for (double y = 0; y < r; y++) {
-    if ((x*x+y*y) < r) {
-      int xx = p[0]+x;
-      int yy = p[1]+y;
-      if ((xx >= 0) && (xx < width) && (yy > 0) && (yy < height))
-        ((unsigned *)game_map.data())[(yy*width+xx)] = 0;
-      xx = p[0]-x;
-      yy = p[1]+y;
-      if ((xx >= 0) && (xx < width) && (yy > 0) && (yy < height))
-        ((unsigned *)game_map.data())[(yy*width+xx)] = 0;
-      xx = p[0]+x;
-      yy = p[1]-y;
-      if ((xx >= 0) && (xx < width) && (yy > 0) && (yy < height))
-        ((unsigned *)game_map.data())[(yy*width+xx)] = 0;
-      xx = p[0]-x;
-      yy = p[1]-y;
-      if ((xx >= 0) && (xx < width) && (yy > 0) && (yy < height))
-        ((unsigned *)game_map.data())[(yy*width+xx)] = 0;
-    }
-  }
-  }
-}
-
 
 void render_everything(std::shared_ptr<SDL_Renderer> renderer,
                        const game_world_t &game_world,
@@ -174,11 +217,14 @@ void render_everything(std::shared_ptr<SDL_Renderer> renderer,
   SDL_RenderClear(renderer.get());
 
   // BITMAPA GRY!!!
-  SDL_Surface *game_map_bmp = SDL_CreateRGBSurfaceWithFormat(
-      0, graphic_data.game_map_width, graphic_data.game_map_height, 32,
+  SDL_Surface *game_map_bmp = SDL_CreateRGBSurfaceWithFormatFrom(
+      game_world.terrain->terrain.data(), game_world.terrain->w,
+      game_world.terrain->h, 32, 4 * game_world.terrain->w,
       SDL_PIXELFORMAT_RGBA32);
-  std::copy(graphic_data.game_map.begin(), graphic_data.game_map.end(),
-            (unsigned char *)game_map_bmp->pixels);
+
+  //  std::copy(game_world.terrain->terrain.begin(),
+  //  game_world.terrain->terrain.end(),
+  //            (unsigned char *)game_map_bmp->pixels);
   if (game_map_bmp == nullptr)
     throw "nie zaladowano surface";
 
@@ -187,11 +233,16 @@ void render_everything(std::shared_ptr<SDL_Renderer> renderer,
   if (tex == nullptr)
     throw "zle";
   SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-  SDL_Rect dstrect = {
-    (int)(-game_world.player.pos[0]+graphic_data.width/2), 
-    (int)(game_world.player.pos[1]+graphic_data.height/2-graphic_data.game_map_height),
-    (int)graphic_data.game_map_width,
-                      (int)graphic_data.game_map_height};
+  auto mpos = game_world.terrain->p_to_map(game_world.player.pos);
+  point_t camera_pos = {graphic_data.width / 2.0, graphic_data.height / 2.0};
+  // std::cout << "P:" << mpos[0] << " " << mpos[1] << std::endl;
+  SDL_Rect dstrect = {(int)(-mpos[0] + camera_pos[0]),
+                      (int)(-mpos[1] + camera_pos[1]),
+                      (int)game_world.terrain->w, (int)game_world.terrain->h};
+  //  SDL_Rect dstrect = {0,//(int)(-mpos[0]+camera_pos[0]),
+  //                      0,//(int)(-mpos[1]+camera_pos[1]),
+  //                      (int)game_world.terrain->w,
+  //                      (int)game_world.terrain->h};
   SDL_RenderCopy(renderer.get(), tex, NULL, &dstrect);
   SDL_DestroyTexture(tex);
   SDL_FreeSurface(game_map_bmp);
@@ -200,10 +251,11 @@ void render_everything(std::shared_ptr<SDL_Renderer> renderer,
 
   SDL_SetRenderDrawColor(renderer.get(), 255, 255, 255, 255);
 
-  SDL_RenderDrawLine(renderer.get(), graphic_data.width/2,
-                     graphic_data.height/2,
-                     graphic_data.width/2,
-                     graphic_data.height/2 - 30);
+  SDL_RenderDrawLine(renderer.get(), (int)(camera_pos[0]), (int)(camera_pos[1]),
+                     (int)(camera_pos[0]), (int)(camera_pos[1]) - 30);
+  //  SDL_RenderDrawLine(renderer.get(), (int)(mpos[0]),
+  //   (int)(mpos[1]),
+  //                     (int)(mpos[0]), (int)(mpos[1]) - 30);
 
   SDL_RenderPresent(renderer.get()); // draw frame to screen
 }
@@ -229,11 +281,10 @@ int main(int, char **) {
         SDL_DestroyRenderer(renderer);
       }); // SDL_RENDERER_PRESENTVSYNC
   errcheck(renderer == nullptr);
+  game_map_t game_map;
+  lodepng::decode(game_map.terrain, game_map.w, game_map.h, "data/plansza.png");
 
-  lodepng::decode(graphic_data.game_map, graphic_data.game_map_width, graphic_data.game_map_height,
-                  "data/plansza.png");
-
-  game_world = new_game_state(graphic_data);
+  game_world = new_game_state(game_map);
 
   // auto dt = 15ms;
   milliseconds dt(15);
@@ -249,7 +300,7 @@ int main(int, char **) {
 
     auto kbdstate = SDL_GetKeyboardState(NULL);
     double accv = 1000.0;
-    game_world.player.a = {0.0,0.0};
+    game_world.player.a = {0.0, 0.0};
     if (kbdstate[SDL_SCANCODE_LEFT])
       game_world.player.a[0] = -accv;
     if (kbdstate[SDL_SCANCODE_RIGHT])
@@ -259,12 +310,13 @@ int main(int, char **) {
     if (kbdstate[SDL_SCANCODE_DOWN])
       game_world.player.a[1] = -accv;
     if (kbdstate[SDL_SCANCODE_SPACE]) {
-      draw_hole(game_world.player.pos, 30, graphic_data.game_map, graphic_data.game_map_width, graphic_data.game_map_height );
+      game_world.terrain->draw_p_hole(game_world.player.pos, 60);
     }
 
-    // draw_hole(point_t pos, double r, std::vector<unsigned char> &game_map, int width, int height )
+    // draw_hole(point_t pos, double r, std::vector<unsigned char> &game_map,
+    // int width, int height )
 
-    game_world = do_simulation_step(game_world,graphic_data, dt);
+    game_world = do_simulation_step(game_world, dt);
     render_everything(renderer, game_world, graphic_data);
 
     this_thread::sleep_until(current_time = current_time + dt);
