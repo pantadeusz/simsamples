@@ -52,6 +52,23 @@ public:
   }
 };
 
+class crosshair_t {
+public:
+  std::shared_ptr<SDL_Texture> tex;
+  coord_t pos;
+
+  crosshair_t() {}
+
+  crosshair_t(std::shared_ptr<SDL_Texture> tex_, double x, double y) {
+    pos = {x, y};
+    tex = tex_;
+  }
+  void draw(SDL_Renderer *renderer) {
+    SDL_Rect p = {pos.x - 32, pos.y - 32, 64, 64};
+    SDL_RenderCopy(renderer, tex.get(), NULL, &p);
+  }
+};
+
 class game_engine_t {
   SDL_Window *window;
   SDL_Renderer *renderer;
@@ -60,6 +77,8 @@ class game_engine_t {
   std::vector<std::shared_ptr<SDL_Texture>> bg_layers;
 
   bool game_active = true;
+
+  crosshair_t crosshair;
 
 public:
   std::shared_ptr<SDL_Texture> load_img(std::string filename) {
@@ -101,6 +120,7 @@ public:
 
     bg_layers = {load_img("background.png"), load_img("grass1.png"),
                  load_img("grass2.png")};
+    crosshair = crosshair_t(load_img("crosshair.png"), 160, 100);
   }
 
   void game_loop() {
@@ -113,8 +133,14 @@ public:
     while (game_active) {
       // petla zdarzen
       while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
+        switch (event.type) {
+        case SDL_QUIT:
           game_active = false;
+          break;
+        case SDL_MOUSEMOTION:
+          crosshair.pos.x = event.motion.x;
+          crosshair.pos.y = event.motion.y;
+          break;
         }
       }
       // fizyka
@@ -129,6 +155,8 @@ public:
       SDL_RenderCopy(renderer, bg_layers.at(0).get(), NULL, NULL);
       for (auto &g : grass)
         g.draw(renderer);
+
+      crosshair.draw(renderer);
       SDL_RenderPresent(renderer);
       auto new_tick = SDL_GetTicks();
       dt = (new_tick - prev_tick) / 1000.0;
