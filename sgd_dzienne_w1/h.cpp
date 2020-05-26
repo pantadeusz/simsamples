@@ -111,12 +111,17 @@ public:
       throw std::invalid_argument(SDL_GetError());
     }
 
-    if (SDL_CreateWindowAndRenderer(320, 240, SDL_WINDOW_RESIZABLE, &window,
+    if (SDL_CreateWindowAndRenderer(640,480, SDL_WINDOW_RESIZABLE, &window,
                                     &renderer)) {
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                    "Couldn't create window and renderer: %s", SDL_GetError());
       throw std::invalid_argument(SDL_GetError());
     }
+    SDL_RenderSetLogicalSize(renderer,320,240);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    SDL_ShowCursor(0);
+
+
 
     bg_layers = {load_img("background.png"), load_img("grass1.png"),
                  load_img("grass2.png")};
@@ -129,6 +134,8 @@ public:
     grass.push_back(grass_t(bg_layers[2], 0, 210, 13.123, 0));
 
     double dt = 0; // przyrost czasu w sekundach
+    long int frame_number = 0;
+
     auto prev_tick = SDL_GetTicks();
     while (game_active) {
       // petla zdarzen
@@ -160,8 +167,9 @@ public:
       SDL_RenderPresent(renderer);
       auto new_tick = SDL_GetTicks();
       dt = (new_tick - prev_tick) / 1000.0;
+      frame_number += (new_tick - prev_tick);
       prev_tick = new_tick;
-      SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Dt: %f\n", dt);
+      if (dt > 0.00001) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "t: %8d  Dt: %f\n", frame_number, dt);
     }
   }
   ~game_engine_t() {
