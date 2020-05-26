@@ -47,7 +47,7 @@ public:
     }
   }
   void draw(SDL_Renderer *renderer) {
-    SDL_Rect grass_position = {pos.x, pos.y, 360, 55};
+    SDL_Rect grass_position = {(int)pos.x, (int)pos.y, 360, 55};
     SDL_RenderCopy(renderer, tex.get(), NULL, &grass_position);
   }
 };
@@ -64,12 +64,15 @@ public:
     tex = tex_;
   }
   void draw(SDL_Renderer *renderer) {
-    SDL_Rect p = {pos.x - 32, pos.y - 32, 64, 64};
+    SDL_Rect p = {(int)pos.x - 32, (int)pos.y - 32, 64, 64};
     SDL_RenderCopy(renderer, tex.get(), NULL, &p);
   }
 };
 
 class game_engine_t {
+
+  static std::string assets_prefix;
+
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Event event;
@@ -87,7 +90,7 @@ public:
     std::shared_ptr<SDL_Texture> texture;
     vector<unsigned char> img_data;
     unsigned img_w, img_h;
-    lodepng::decode(img_data, img_w, img_h, filename);
+    lodepng::decode(img_data, img_w, img_h, assets_prefix + filename);
     surface = SDL_CreateRGBSurfaceWithFormatFrom(
         img_data.data(), img_w, img_h, 32, 4 * img_w, SDL_PIXELFORMAT_RGBA32);
 
@@ -111,17 +114,15 @@ public:
       throw std::invalid_argument(SDL_GetError());
     }
 
-    if (SDL_CreateWindowAndRenderer(640,480, SDL_WINDOW_RESIZABLE, &window,
+    if (SDL_CreateWindowAndRenderer(640, 480, SDL_WINDOW_RESIZABLE, &window,
                                     &renderer)) {
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                    "Couldn't create window and renderer: %s", SDL_GetError());
       throw std::invalid_argument(SDL_GetError());
     }
-    SDL_RenderSetLogicalSize(renderer,320,240);
+    SDL_RenderSetLogicalSize(renderer, 320, 240);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     SDL_ShowCursor(0);
-
-
 
     bg_layers = {load_img("background.png"), load_img("grass1.png"),
                  load_img("grass2.png")};
@@ -169,7 +170,9 @@ public:
       dt = (new_tick - prev_tick) / 1000.0;
       frame_number += (new_tick - prev_tick);
       prev_tick = new_tick;
-      if (dt > 0.00001) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "t: %8d  Dt: %f\n", frame_number, dt);
+      if (dt > 0.00001)
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "t: %8d  Dt: %f\n",
+                    frame_number, dt);
     }
   }
   ~game_engine_t() {
@@ -179,6 +182,8 @@ public:
     SDL_Quit();
   }
 };
+
+std::string game_engine_t::assets_prefix = "assets/";
 
 int main(int argc, char *argv[]) {
   using namespace std;
