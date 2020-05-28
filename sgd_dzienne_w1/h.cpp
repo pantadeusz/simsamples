@@ -14,6 +14,12 @@ public:
     x = x_;
     y = y_;
   }
+  double length2() const {
+    return (x*x)+(y*y);
+  }
+  double length() const {
+    return sqrt(length2());
+  }
 };
 
 coord_t operator+(const coord_t &a, const coord_t &b) {
@@ -230,6 +236,7 @@ public:
     long int df = 0; // przyrost ramek/milisekund
 
     auto prev_tick = SDL_GetTicks();
+    coord_t mouse_move_direction = {0,-1.0};
     while (game_active) {
       // petla zdarzen
       while (SDL_PollEvent(&event)) {
@@ -240,6 +247,23 @@ public:
         case SDL_MOUSEMOTION:
           crosshair.pos.x = event.motion.x;
           crosshair.pos.y = event.motion.y;
+
+          if (!((event.motion.xrel == 0) && (event.motion.yrel == 0))) {
+            mouse_move_direction.x = mouse_move_direction.x*0.7 + event.motion.xrel*0.3;
+            mouse_move_direction.y = mouse_move_direction.y*0.7 + event.motion.yrel*0.3;
+          }
+
+          break;
+        case SDL_MOUSEBUTTONDOWN:
+          if (event.button.button == SDL_BUTTON_LEFT) {
+            static double a = 0;
+            a += 0.1;
+            duck_t d;
+            d.anim = duck_animation;
+            d.respawn(crosshair.pos, atan2(mouse_move_direction.y,mouse_move_direction.x), mouse_move_direction.length()*100);
+            ducks.push_back(d);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "New duck\n");
+          }
           break;
         case SDL_KEYDOWN:
           if (event.key.keysym.sym == SDLK_SPACE) {
