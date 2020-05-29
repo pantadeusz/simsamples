@@ -1,9 +1,12 @@
 #include "lodepng.h"
 #include <SDL2/SDL.h>
+#include <algorithm>
+#include <functional>
+#include <list>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <vector>
-#include <algorithm>
 
 class coord_t {
 public:
@@ -14,16 +17,15 @@ public:
     x = x_;
     y = y_;
   }
-  double length2() const {
-    return (x*x)+(y*y);
-  }
-  double length() const {
-    return sqrt(length2());
-  }
+  double length2() const { return (x * x) + (y * y); }
+  double length() const { return sqrt(length2()); }
 };
 
 coord_t operator+(const coord_t &a, const coord_t &b) {
   return coord_t(a.x + b.x, a.y + b.y);
+}
+coord_t operator-(const coord_t &a, const coord_t &b) {
+  return coord_t(a.x - b.x, a.y - b.y);
 }
 coord_t operator*(const coord_t &a, const double &b) {
   return coord_t(a.x * b, a.y * b);
@@ -122,11 +124,25 @@ public:
     v = {cos(angle) * v_, sin(angle) * v_};
     pos = pos_;
   }
+  void respawn(coord_t pos_, coord_t v_, double initvel) {
+    a.x = 0;
+    a.y = 100.0;
+    v = v_;
+    if ((v.length() == 0.0) && (initvel != 0.0))
+      throw std::invalid_argument("vector should have some length!");
+    if (v.length() == 0.0)
+      v = v * (1.0 / v.length()) * initvel;
+    pos = pos_;
+  }
 
   void update(int df) {
     double dt = (df * 0.001);
     pos = pos + v * dt + v * a * (dt * dt) * 0.5;
     v = v + a * dt;
+  }
+
+  bool check_collision(const coord_t &shot_pos) {
+    return (shot_pos - pos).length() < 16;
   }
 
   void draw() {
@@ -184,6 +200,32 @@ public:
   }
 };
 
+class duck_gun_t {
+public:
+  int time_to_next_duck; // in milliseconds
+  std::uniform_int_distribution<> duck_timer_dist;
+  std::uniform_real_distribution<> duck_dir_dist;
+  std::mt19937 gen;
+  duck_gun_t() {
+    std::random_device rd;
+    gen = std::mt19937(rd());
+    duck_timer_dist = std::uniform_int_distribution<>(100, 1000);
+    duck_dir_dist = std::uniform_real_distribution<>(0, 320);
+    time_to_next_duck = duck_timer_dist(gen);
+  }
+  void update(int df, std::function<void(duck_t &)> on_new_duck) {
+    time_to_next_duck -= df;
+    if (time_to_next_duck <= 0) {
+      coord_t position = {duck_dir_dist(gen), 230};
+      coord_t target = {duck_dir_dist(gen), 50};
+      duck_t new_duck;
+      new_duck.respawn(position, target - position, 200);
+      on_new_duck(new_duck);
+      time_to_next_duck += duck_timer_dist(gen);
+    }
+  }
+};
+
 class game_engine_t {
   SDL_Window *window;
   SDL_Renderer *renderer;
@@ -236,7 +278,10 @@ public:
     long int df = 0; // przyrost ramek/milisekund
 
     auto prev_tick = SDL_GetTicks();
-    coord_t mouse_move_direction = {0,-1.0};
+    coord_t mouse_move_direction = {0, -1.0};
+    duck_gun_t duck_gun;
+    std::list<coord_t> shots;
+
     while (game_active) {
       // petla zdarzen
       while (SDL_PollEvent(&event)) {
@@ -249,20 +294,25 @@ public:
           crosshair.pos.y = event.motion.y;
 
           if (!((event.motion.xrel == 0) && (event.motion.yrel == 0))) {
-            mouse_move_direction.x = mouse_move_direction.x*0.7 + event.motion.xrel*0.3;
-            mouse_move_direction.y = mouse_move_direction.y*0.7 + event.motion.yrel*0.3;
+            mouse_move_direction.x =
+                mouse_move_direction.x * 0.7 + event.motion.xrel * 0.3;
+            mouse_move_direction.y =
+                mouse_move_direction.y * 0.7 + event.motion.yrel * 0.3;
           }
 
           break;
         case SDL_MOUSEBUTTONDOWN:
           if (event.button.button == SDL_BUTTON_LEFT) {
-            static double a = 0;
-            a += 0.1;
-            duck_t d;
-            d.anim = duck_animation;
-            d.respawn(crosshair.pos, atan2(mouse_move_direction.y,mouse_move_direction.x), mouse_move_direction.length()*100);
-            ducks.push_back(d);
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "New duck\n");
+            shots.push_back(crosshair.pos);
+            // static double a = 0;
+            // a += 0.1;
+            // duck_t d;
+            // d.anim = duck_animation;
+            // d.respawn(crosshair.pos,
+            //          atan2(mouse_move_direction.y, mouse_move_direction.x),
+            //          mouse_move_direction.length() * 100);
+            // ducks.push_back(d);
+            // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "New duck\n");
           }
           break;
         case SDL_KEYDOWN:
@@ -287,12 +337,24 @@ public:
         for (auto &duck : ducks)
           duck.update(df);
         duck_animation->update(df);
-        ducks.erase(
-            std::remove_if(ducks.begin(), ducks.end(),
-                           [](duck_t &d) { return d.pos.y > 400.0; }),
-            ducks.end());
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ducks %d", ducks.size());
-
+        duck_gun.update(df, [this](auto &duck) {
+          SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "adding duck %f %f %f %f!!",
+                      duck.pos.x, duck.pos.y, duck.v.x, duck.v.y);
+          SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ducks %d!!", ducks.size());
+          duck.anim = duck_animation;
+          ducks.push_back(duck);
+        });
+        ducks.erase(std::remove_if(ducks.begin(), ducks.end(),
+                                   [&shots](duck_t &d) {
+                                     for (auto &shotpos : shots)
+                                       if (d.check_collision(shotpos)) {
+                                         return true;
+                                       }
+                                     return d.pos.y > 400.0;
+                                   }),
+                    ducks.end());
+        shots.clear();
+        // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ducks %d", ducks.size());
       }
       // grafika
       SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
