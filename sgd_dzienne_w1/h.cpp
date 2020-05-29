@@ -226,6 +226,48 @@ public:
   }
 };
 
+class player_t {
+public:
+  crosshair_t crosshair;
+  coord_t mouse_move_direction;
+  int points;
+  int missed;
+  std::list<coord_t> shots;
+  std::shared_ptr<SDL_Texture> ducks_texture;
+  std::vector<SDL_Rect> digits;
+
+  player_t(){}
+  player_t(std::shared_ptr<SDL_Texture> ducks_texture_) {
+    ducks_texture = ducks_texture_;
+    points = 0;
+    missed = 0;
+    mouse_move_direction = {0, -1.0};
+    for (int i = 131; i< 131+8*6; i+=8) digits.push_back({i,128,8,8});
+    for (int i = 131; i< 131+8*4; i+=8) digits.push_back({i,136,8,8});
+  }
+  void draw_digit(SDL_Renderer *renderer,coord_t p, int n, int offset = 0) {
+    SDL_Rect dest = {(int)p.x,(int)p.y,digits.at(n).w, digits.at(n).h};
+    auto srcr = digits.at(n);
+    srcr.y += offset;
+    SDL_RenderCopy(renderer, ducks_texture.get(), &srcr,
+                     &dest);
+
+  }
+
+  void draw(SDL_Renderer *renderer) {
+      int p = points;
+      for (int i = 9; i > 0; i--) {
+        draw_digit(renderer, {10.0+i*10,10.0},p%10);
+        p = p/10;
+      }
+      p = missed;
+      for (int i = 9; i > 0; i--) {
+        draw_digit(renderer, {10.0+i*10,20.0},p%10,16);
+        p = p/10;
+      }
+      crosshair.draw(renderer);
+  }
+};
 class game_engine_t {
   SDL_Window *window;
   SDL_Renderer *renderer;
@@ -235,12 +277,11 @@ class game_engine_t {
   std::shared_ptr<spritesheet_t> duck_animation;
 
   std::vector<duck_t> ducks; // ducks on the move
-
   bool game_active = true;
 
-  crosshair_t crosshair;
 
 public:
+  player_t player;
   game_engine_t() {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -262,10 +303,11 @@ public:
     bg_layers = {load_img(renderer, "background.png"),
                  load_img(renderer, "grass1.png"),
                  load_img(renderer, "grass2.png")};
-    crosshair = crosshair_t(load_img(renderer, "crosshair.png"), 160, 100);
     duck_animation = std::make_shared<spritesheet_t>(renderer, "dh_duck.png",
                                                      SDL_Rect{0, 0, 36, 40}, 3,
                                                      300, 1, 0x0ffa5efa3);
+    player = player_t(duck_animation->tex);
+    player.crosshair = crosshair_t(load_img(renderer, "crosshair.png"), 160, 100);
   }
 
   void game_loop() {
@@ -278,11 +320,9 @@ public:
     long int df = 0; // przyrost ramek/milisekund
 
     auto prev_tick = SDL_GetTicks();
-    coord_t mouse_move_direction = {0, -1.0};
     duck_gun_t duck_gun;
-    std::list<coord_t> shots;
 
-    while (game_active) {
+    while (game_active && (player.missed < 10)) {
       // petla zdarzen
       while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -290,40 +330,20 @@ public:
           game_active = false;
           break;
         case SDL_MOUSEMOTION:
-          crosshair.pos.x = event.motion.x;
-          crosshair.pos.y = event.motion.y;
+          player.crosshair.pos.x = event.motion.x;
+          player.crosshair.pos.y = event.motion.y;
 
           if (!((event.motion.xrel == 0) && (event.motion.yrel == 0))) {
-            mouse_move_direction.x =
-                mouse_move_direction.x * 0.7 + event.motion.xrel * 0.3;
-            mouse_move_direction.y =
-                mouse_move_direction.y * 0.7 + event.motion.yrel * 0.3;
+            player.mouse_move_direction.x =
+                player.mouse_move_direction.x * 0.7 + event.motion.xrel * 0.3;
+            player.mouse_move_direction.y =
+                player.mouse_move_direction.y * 0.7 + event.motion.yrel * 0.3;
           }
 
           break;
         case SDL_MOUSEBUTTONDOWN:
           if (event.button.button == SDL_BUTTON_LEFT) {
-            shots.push_back(crosshair.pos);
-            // static double a = 0;
-            // a += 0.1;
-            // duck_t d;
-            // d.anim = duck_animation;
-            // d.respawn(crosshair.pos,
-            //          atan2(mouse_move_direction.y, mouse_move_direction.x),
-            //          mouse_move_direction.length() * 100);
-            // ducks.push_back(d);
-            // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "New duck\n");
-          }
-          break;
-        case SDL_KEYDOWN:
-          if (event.key.keysym.sym == SDLK_SPACE) {
-            static double a = 0;
-            a += 0.1;
-            duck_t d;
-            d.anim = duck_animation;
-            d.respawn(crosshair.pos, a, 200);
-            ducks.push_back(d);
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "New duck\n");
+            player.shots.push_back(player.crosshair.pos);
           }
           break;
         }
@@ -344,16 +364,20 @@ public:
           duck.anim = duck_animation;
           ducks.push_back(duck);
         });
+        int prev_points = player.points;
         ducks.erase(std::remove_if(ducks.begin(), ducks.end(),
-                                   [&shots](duck_t &d) {
-                                     for (auto &shotpos : shots)
+                                   [this](duck_t &d) {
+                                     for (auto &shotpos : player.shots)
                                        if (d.check_collision(shotpos)) {
+                                         player.points+=1;
+                                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "points: %d", player.points);
                                          return true;
                                        }
                                      return d.pos.y > 400.0;
                                    }),
                     ducks.end());
-        shots.clear();
+        if (player.shots.size() > 0) if (prev_points == player.points) player.missed ++;
+        player.shots.clear();
         // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ducks %d", ducks.size());
       }
       // grafika
@@ -363,7 +387,7 @@ public:
       for (auto &g : grass)
         g.draw(renderer);
 
-      crosshair.draw(renderer);
+      player.draw(renderer);
 
       for (auto &duck : ducks)
         duck.draw();
@@ -372,9 +396,6 @@ public:
       dt = (new_tick - prev_tick) / 1000.0;
       frame_number += (df = (new_tick - prev_tick));
       prev_tick = new_tick;
-      // if (dt > 0.00001)
-      //  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "t: %8d  Dt: %f\n",
-      //              frame_number, dt);
     }
   }
   ~game_engine_t() {
@@ -389,5 +410,8 @@ int main(int argc, char *argv[]) {
   using namespace std;
   game_engine_t engine;
   engine.game_loop();
+
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Your score is %d", engine.player.points);
+
   return 0;
 }
