@@ -1,4 +1,5 @@
 #include "lodepng.h"
+#include "net/client.h"
 #include <SDL2/SDL.h>
 #include <algorithm>
 #include <functional>
@@ -236,36 +237,36 @@ public:
   std::shared_ptr<SDL_Texture> ducks_texture;
   std::vector<SDL_Rect> digits;
 
-  player_t(){}
+  player_t() {}
   player_t(std::shared_ptr<SDL_Texture> ducks_texture_) {
     ducks_texture = ducks_texture_;
     points = 0;
     missed = 0;
     mouse_move_direction = {0, -1.0};
-    for (int i = 131; i< 131+8*6; i+=8) digits.push_back({i,128,8,8});
-    for (int i = 131; i< 131+8*4; i+=8) digits.push_back({i,136,8,8});
+    for (int i = 131; i < 131 + 8 * 6; i += 8)
+      digits.push_back({i, 128, 8, 8});
+    for (int i = 131; i < 131 + 8 * 4; i += 8)
+      digits.push_back({i, 136, 8, 8});
   }
-  void draw_digit(SDL_Renderer *renderer,coord_t p, int n, int offset = 0) {
-    SDL_Rect dest = {(int)p.x,(int)p.y,digits.at(n).w, digits.at(n).h};
+  void draw_digit(SDL_Renderer *renderer, coord_t p, int n, int offset = 0) {
+    SDL_Rect dest = {(int)p.x, (int)p.y, digits.at(n).w, digits.at(n).h};
     auto srcr = digits.at(n);
     srcr.y += offset;
-    SDL_RenderCopy(renderer, ducks_texture.get(), &srcr,
-                     &dest);
-
+    SDL_RenderCopy(renderer, ducks_texture.get(), &srcr, &dest);
   }
 
   void draw(SDL_Renderer *renderer) {
-      int p = points;
-      for (int i = 9; i > 0; i--) {
-        draw_digit(renderer, {10.0+i*10,10.0},p%10);
-        p = p/10;
-      }
-      p = missed;
-      for (int i = 9; i > 0; i--) {
-        draw_digit(renderer, {10.0+i*10,20.0},p%10,16);
-        p = p/10;
-      }
-      crosshair.draw(renderer);
+    int p = points;
+    for (int i = 9; i > 0; i--) {
+      draw_digit(renderer, {10.0 + i * 10, 10.0}, p % 10);
+      p = p / 10;
+    }
+    p = missed;
+    for (int i = 9; i > 0; i--) {
+      draw_digit(renderer, {10.0 + i * 10, 20.0}, p % 10, 16);
+      p = p / 10;
+    }
+    crosshair.draw(renderer);
   }
 };
 class game_engine_t {
@@ -279,10 +280,14 @@ class game_engine_t {
   std::vector<duck_t> ducks; // ducks on the move
   bool game_active = true;
 
+  std::shared_ptr<client_t> net_client;
 
 public:
   player_t player;
-  game_engine_t() {
+  game_engine_t(std::vector<std::string> args) {
+    if (args.size() >= 2) {
+       net_client = std::make_shared<client_t>(args.at(0), args.at(1), (args.size() > 2)?args.at(2):"9921");
+    }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s",
@@ -307,7 +312,8 @@ public:
                                                      SDL_Rect{0, 0, 36, 40}, 3,
                                                      300, 1, 0x0ffa5efa3);
     player = player_t(duck_animation->tex);
-    player.crosshair = crosshair_t(load_img(renderer, "crosshair.png"), 160, 100);
+    player.crosshair =
+        crosshair_t(load_img(renderer, "crosshair.png"), 160, 100);
   }
 
   void game_loop() {
@@ -318,6 +324,10 @@ public:
     double dt = 0; // przyrost czasu w sekundach
     long int frame_number = 0;
     long int df = 0; // przyrost ramek/milisekund
+
+    if (net_client.get()) {
+      net_client->start_game();
+    }
 
     auto prev_tick = SDL_GetTicks();
     duck_gun_t duck_gun;
@@ -369,14 +379,18 @@ public:
                                    [this](duck_t &d) {
                                      for (auto &shotpos : player.shots)
                                        if (d.check_collision(shotpos)) {
-                                         player.points+=1;
-                                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "points: %d", player.points);
+                                         player.points += 1;
+                                         SDL_LogInfo(
+                                             SDL_LOG_CATEGORY_APPLICATION,
+                                             "points: %d", player.points);
                                          return true;
                                        }
                                      return d.pos.y > 400.0;
                                    }),
                     ducks.end());
-        if (player.shots.size() > 0) if (prev_points == player.points) player.missed ++;
+        if (player.shots.size() > 0)
+          if (prev_points == player.points)
+            player.missed++;
         player.shots.clear();
         // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ducks %d", ducks.size());
       }
@@ -408,10 +422,11 @@ public:
 
 int main(int argc, char *argv[]) {
   using namespace std;
-  game_engine_t engine;
+  game_engine_t engine(std::vector<std::string>(argv+1, argv + argc));
   engine.game_loop();
 
-  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Your score is %d", engine.player.points);
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Your score is %d",
+              engine.player.points);
 
   return 0;
 }
