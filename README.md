@@ -12,6 +12,6 @@ cmake ../
 
 This is example for "hello world"
 ```bash
-cmake -B 01_hello_sdl_build -s 01_hello_sdl --build
+cmake -B 01_hello_sdl_build -s 01_hello_sdl
 cmake --build 01_hello_sdl_build
 ```
