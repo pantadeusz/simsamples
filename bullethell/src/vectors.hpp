@@ -38,6 +38,7 @@ inline double length(const T& a) {
     return (ret == 0)?0.0:std::sqrt(ret);
 }
 
+
 }; // namespace tp
 
 
