@@ -8,6 +8,23 @@
  * Unlicensed
  */
 
+
+/**
+ * TODO:
+ * 
+ * Code reorg
+ * Multiplayer
+ * Keyboard mapping
+ * 
+ * 
+ * */
+
+/**
+ * The game world is 10x10 tiles. Every coordinate is multiplied by 10 in order to drive it.
+ * 
+ * */
+
+#include "bmpfont.hpp"
 #include "vectors.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -26,6 +43,7 @@
 #include <tuple>
 #include <vector>
 
+#include "main.hpp"
 
 std::ostream& operator<<(std::ostream& o, const std::array<double, 2>& a)
 {
@@ -39,125 +57,152 @@ void draw_o(std::shared_ptr<SDL_Renderer> r, std::array<double, 2> p, std::share
     SDL_RenderCopyEx(r.get(), tex.get(), NULL, &dst_rect, a, NULL, SDL_RendererFlip::SDL_FLIP_NONE);
 }
 
-class physical_c
+
+int process_input(game_c& game)
 {
-public:
-    std::array<double, 2> position;
-    std::array<double, 2> velocity;
-    std::array<double, 2> acceleration;
-    double friction;
-
-    void update(double dt_f, std::function<void(physical_c*, std::array<double, 2>& pos, std::array<double, 2>& vel)> callback_f)
-    {
-        using namespace tp::operators;
-        // apply friction:
-        auto new_acceleration = acceleration - velocity*length(velocity)*friction;
-        auto new_velocity = velocity + new_acceleration * dt_f;
-        auto new_position = position + new_velocity * dt_f + new_acceleration * dt_f * dt_f * 0.5;
-        callback_f(this, new_position, new_velocity);
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) { // check if there are some events
+        if (event.type == SDL_QUIT)
+            return false;
     }
-};
+    auto kbdstate = SDL_GetKeyboardState(NULL);
+    for (unsigned i = 0; i < game.players.size(); i++) {
+        game.players.at(i).intentions.clear();
+        for (auto [k, v] : game.keyboard_map.at(i)) {
+            if (kbdstate[v]) game.players.at(i).intentions[k] = 1;
+        }
+    }
+    return true;
+}
 
-class player_c : public physical_c
+void process_events(game_c& game)
 {
-public:
-    std::map<std::string, int> intentions;
-
-    player_c()
-    {
-        position = {10, 10};
-        velocity = {0, 0};
-        friction = 0.03;
-        acceleration = {0,0};
+    double dt_f = game.dt.count() / 1000.0;
+    /// apply safe place and hit points
+    for (unsigned i = 0; i < game.players.size(); i++) {
+        auto& p = game.players[i];
+        if ((p.is_safe_place())) {
+            p.health += dt_f * 10.0;
+            if (p.health > 100.0) p.health = 100;
+        } else {
+            p.points += dt_f * 10.0;
+        }
     }
 
-    /**
- * applies and clears intentions
- * */
-    void apply_intent()
-    {
-        acceleration = {0, 30};
-        if (intentions.count("right")) acceleration[0] += 100;
-        if (intentions.count("left")) acceleration[0] += -100;
-        if (intentions.count("up")) acceleration[1] += -100;
-        if (intentions.count("down")) acceleration[1] += +100;
+    for (unsigned i = 0; i < game.emitters.size(); i++) {
+        auto& e = game.emitters[i];
+        e.emit_to_emit -= dt_f;
 
-        intentions.clear();
+        if (e.emit_to_emit <= 0.0) {
+            e.emit_to_emit = e.emit_delay;
+            game.bullets.push_back(bullet_c({e.position, {-10.0, -0.0}, {0.0, 1.0},0.0,"bullet[0]"}));
+        }
     }
-};
+}
+
+void process_physics(game_c& game)
+{
+    using namespace tp::operators;
+    double dt_f = game.dt.count() / 1000.0;
+
+    /// fizyka
+    auto old_players = game.players;
+    // update moves
+    for (auto& player : game.players) {
+        player.apply_intent();
+        player.update(dt_f);
+    }
+    // update bullets
+    std::vector<bullet_c> bullets_new;
+
+    for (auto& bullet : game.bullets) {
+        bullet.update(dt_f);
+        if ((bullet.position[0] > -10.0) && (bullet.position[0] < 74) && (bullet.position[0] > -1000.0) && (bullet.position[1] < 74)) {
+            bullets_new.push_back(bullet);
+        }
+    }
+    std::swap(bullets_new, game.bullets);
+    // check colision between players
+    // they can interact with each other
+    for (unsigned i = 0; i < game.players.size(); i++) {
+        for (unsigned j = i + 1; j < game.players.size(); j++) {
+            if (length(game.players[i].position - game.players[j].position) < 1.0) {
+                game.players[i].position = old_players[i].position;
+                game.players[j].position = old_players[j].position;
+                auto vec = game.players[i].position - game.players[j].position;
+                vec = vec * (1.0 / length(vec));
+                game.players[i].velocity = vec; //old_players[i].position;
+                game.players[j].velocity = vec * -1.0;
+            }
+        }
+    }
+    // TODO
+
+    // check collisions with ground - always active
+    for (unsigned i = 0; i < game.players.size(); i++) {
+        if (game.players[i].position[1] < 32) {
+            game.players[i].friction = 0.2;
+        } else {
+            game.players[i].velocity = {(game.players[i].velocity[0] * game.players[i].velocity[0] > 2.2) ? game.players[i].velocity[0] : 0.0, 0};
+            game.players[i].position[1] = 32;
+            game.players[i].friction = 0.3;
+        }
+    }
+}
+
+void process_sound(game_c&)
+{
+    // todo for students :)
+}
+
+/// player size i 10 x 10
+void draw_scene(game_c& game)
+{
+    using namespace tp::operators;
+
+    SDL_SetRenderDrawColor(game.renderer_p.get(), 0, 100, 20, 255);
+    SDL_RenderClear(game.renderer_p.get());
+    SDL_SetRenderDrawColor(game.renderer_p.get(), 255, 100, 200, 255);
+
+    // DRAW ALL PLAYERS
+    for (unsigned i = 0; i < game.players.size(); i++) {
+        auto& player = game.players[i];
+        draw_o(game.renderer_p, player.position * 10.0, game.textures.at("player[" + std::to_string(i) + "]"), 16, 16, player.position[0] * 36 + player.position[1] * 5);
+        if (player.is_safe_place())
+            draw_o(game.renderer_p, player.position * 10.0, game.textures.at("player[" + std::to_string(i) + "]"), 16 + 4, 16 + 4, player.position[0] * 36 + player.position[1] * 5);
+
+        tp::draw_text(game.renderer_p, 10 + i * 130, 340, game.textures["font_10_red"], std::to_string((int)player.health));
+        tp::draw_text(game.renderer_p, 10 + i * 130 + 40, 340, game.textures["font_10_blue"], std::to_string((int)player.points));
+    }
+    // DRAW ALL EMITTERS
+    for (unsigned i = 0; i < game.emitters.size(); i++) {
+        auto& emitter = game.emitters[i];
+        draw_o(game.renderer_p, emitter.position * 10.0, game.textures.at("emitter[" + std::to_string(i) + "]"), 16, 16, 0.0);
+    }
+    // DRAW ALL BULLETS
+    for (unsigned i = 0; i < game.bullets.size(); i++) {
+        auto& bullet = game.bullets[i];
+        draw_o(game.renderer_p, bullet.position * 10.0, game.textures.at(bullet.type), 10, 10, 33.0);
+    }
+
+    SDL_RenderPresent(game.renderer_p.get());
+}
+
 
 int main(int, char**)
 {
     using namespace std;
     using namespace std::chrono;
-    using namespace tp::operators;
 
-    SDL_Init(SDL_INIT_EVERYTHING);
-    IMG_Init(IMG_INIT_PNG);
-    shared_ptr<SDL_Window> window_p(
-        SDL_CreateWindow("Better Worms", SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED, 640, 360, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE),
-        [](auto* window) { SDL_DestroyWindow(window); });
-
-    shared_ptr<SDL_Renderer> renderer_p(
-        SDL_CreateRenderer(window_p.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
-        [](auto* renderer) {
-            SDL_DestroyRenderer(renderer);
-        });
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-    SDL_RenderSetLogicalSize(renderer_p.get(), 640, 360);
-
-    shared_ptr<SDL_Texture> tex_p(IMG_LoadTexture(renderer_p.get(), "data/player.png"),
-        [](auto* tex) { SDL_DestroyTexture(tex); });
-
-
-    player_c player;
-
-    milliseconds dt(15);
+    auto game = initialize_all();
     steady_clock::time_point current_time = steady_clock::now(); // remember current time
-
     for (bool game_active = true; game_active;) {
-        steady_clock::time_point frame_start = steady_clock::now();
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) { // check if there are some events
-            if (event.type == SDL_QUIT)
-                game_active = false;
-        }
-        auto kbdstate = SDL_GetKeyboardState(NULL);
-        if (kbdstate[SDL_SCANCODE_RIGHT]) player.intentions["right"] = 1;
-        if (kbdstate[SDL_SCANCODE_LEFT]) player.intentions["left"] = 1;
-        if (kbdstate[SDL_SCANCODE_UP]) player.intentions["up"] = 1;
-        if (kbdstate[SDL_SCANCODE_DOWN]) player.intentions["down"] = 1;
+        game_active = process_input(game);
+        process_events(game);
+        process_physics(game);
+        draw_scene(game);
 
-        /// fizyka
-        double dt_f = dt.count() / 1000.0;
-        player.apply_intent();
-        player.update(dt_f, [&](auto p, auto pos, auto vel) {
-            if (pos[1] < 30) {
-                p->position = pos;
-                p->velocity = vel;
-                p->friction = 0.2;
-            } else {
-                p->velocity = {(vel[0]*vel[0]>2.2)?vel[0]:0.0, 0};
-                p->position[0] = pos[0];
-                p->friction = 0.3;
-            }
-        });
-        /// grafika
-        SDL_SetRenderDrawColor(renderer_p.get(), 0, 100, 20, 255);
-        SDL_RenderClear(renderer_p.get());
-        SDL_SetRenderDrawColor(renderer_p.get(), 255, 100, 200, 255);
-        SDL_RenderCopy(renderer_p.get(), tex_p.get(), NULL, NULL);
-        draw_o(renderer_p, player.position*10.0, tex_p, 16, 16, player.position[0]*36+player.position[1]*5);
-        //draw_o(renderer_p.get(),{50,20},tex_p.get(),16,16,30);
-        SDL_RenderPresent(renderer_p.get());
-
-        this_thread::sleep_until(current_time = current_time + dt);
-
-        steady_clock::time_point frame_end = steady_clock::now();
-        
-       // std::cout << "frame time: " << (frame_end - frame_start).count() << std::endl;
+        this_thread::sleep_until(current_time = current_time + game.dt);
     }
     SDL_Quit();
     return 0;
