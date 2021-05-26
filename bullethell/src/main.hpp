@@ -75,6 +75,14 @@ public:
     }
 };
 
+class obstacle_c {
+public:
+    std::array<double, 2> position;
+    std::array<double, 2> size;
+    std::string texture;
+};
+
+
 class game_c
 {
 public:
@@ -85,88 +93,14 @@ public:
     std::vector<bullet_c> bullets;
     std::vector<emitter_c> emitters;
 
+    std::vector<obstacle_c> obstacles;
+
 
     std::chrono::milliseconds dt;
 
     std::vector<std::map<std::string, int>> keyboard_map;
+
+
 };
-
-game_c initialize_all()
-{
-    game_c game;
-    /// SDL
-    SDL_Init(SDL_INIT_EVERYTHING);
-    IMG_Init(IMG_INIT_PNG);
-
-    /// WINDOW
-    game.window_p = std::shared_ptr<SDL_Window>(
-        SDL_CreateWindow("Better Worms", SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED, 640, 360, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE),
-        [](auto* window) { SDL_DestroyWindow(window); });
-
-    game.renderer_p = std::shared_ptr<SDL_Renderer>(
-        SDL_CreateRenderer(game.window_p.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
-        [](auto* renderer) {
-            SDL_DestroyRenderer(renderer);
-        });
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-    SDL_RenderSetLogicalSize(game.renderer_p.get(), 640, 360);
-
-    /// MEDIA
-    for (int i = 0; i < 3; i++) {
-        game.textures["player[" + std::to_string(i) + "]"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), (std::string("data/player") + std::to_string(i) + ".png").c_str()),
-            [](auto* tex) { SDL_DestroyTexture(tex); });
-    }
-    for (int i = 0; i < 1; i++) {
-        game.textures["bullet[" + std::to_string(i) + "]"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), (std::string("data/bullet") + std::to_string(i) + ".png").c_str()),
-            [](auto* tex) { SDL_DestroyTexture(tex); });
-    }
-    for (int i = 0; i < 1; i++) {
-        game.textures["emitter[" + std::to_string(i) + "]"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), (std::string("data/emitter") + std::to_string(i) + ".png").c_str()),
-            [](auto* tex) { SDL_DestroyTexture(tex); });
-    }
-    game.textures["font_10"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), "data/oqls65n.png"),
-        [](auto* tex) { SDL_DestroyTexture(tex); });
-
-    game.textures["font_10_red"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), "data/oqls65n_red.png"),
-        [](auto* tex) { SDL_DestroyTexture(tex); });
-
-    game.textures["font_10_blue"] = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), "data/oqls65n_blue.png"),
-        [](auto* tex) { SDL_DestroyTexture(tex); });
-    /// PLAYERS
-    game.players.push_back(player_c({0.2, 10}));
-    game.players.push_back(player_c({1.5, 10}));
-
-    /// EMITTERS
-
-    emitter_c emitter;
-    emitter.position = {60, 15};
-    emitter.friction = 0;
-    emitter.acceleration = {0, 0};
-    emitter.velocity = {0, 0};
-    emitter.emit_delay = 1;
-    emitter.emit_to_emit = 5;
-    game.emitters.push_back(emitter);
-
-    /// physics details
-    game.dt = std::chrono::milliseconds(15);
-
-    /// keyboard mapping
-    // player 0
-    game.keyboard_map.push_back({{"right", SDL_SCANCODE_RIGHT},
-        {"left", SDL_SCANCODE_LEFT},
-        {"up", SDL_SCANCODE_UP},
-        {"down", SDL_SCANCODE_DOWN}});
-    // player 1
-    game.keyboard_map.push_back({{"right", SDL_SCANCODE_D},
-        {"left", SDL_SCANCODE_A},
-        {"up", SDL_SCANCODE_W},
-        {"down", SDL_SCANCODE_S}});
-    // player 2
-
-
-    return game;
-}
 
 #endif
