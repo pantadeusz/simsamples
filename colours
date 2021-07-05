@@ -1,0 +1,8 @@
+std::vector<std::array<unsigned char, 4>> palette {
+    {255, 0, 0, 255},  // red
+    {0, 255, 0, 255},  // green
+    {0, 0, 255, 255},  // blue
+};
+
+
+SDL_SetRenderDrawColor(renderer.get(), 0x89, 0x04, 0xB1, 0x00);// fioletowy
