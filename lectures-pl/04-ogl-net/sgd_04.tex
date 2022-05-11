@@ -1,0 +1,76 @@
+\documentclass{beamer}
+
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[OT4]{fontenc}
+\usepackage{algpseudocode}
+\usepackage{beamerthemeshadow}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{shortcuts}
+
+\beamertemplateballitem
+\beamertemplatenumberedballsectiontoc
+
+\hypersetup{%
+  pdftitle={Symulacje i gry decyzyjne 1},%
+  pdfauthor={Tadeusz Puźniakowski}}
+
+\title[SGD 4]{OpenGL}
+
+\author{Tadeusz Puźniakowski}
+
+\institute{PJATK}
+\date{2017}
+
+\newcounter{minisection}
+\newcommand{\minisectionframe}[1]{
+\frame{
+	\begin{center}
+	#1
+	\end{center}
+}}
+
+\newcommand{\smallhref}[1]{{\footnotesize\href{#1}{\url{#1}}}}
+
+\begin{document}
+
+\frame{\titlepage}
+
+
+\begin{frame}[fragile]
+	\BB{OpenGL - plan wykładu}
+		\BI
+		\I Ustawienie parametrów sceny.
+		\I Współrzędne.
+		\I Wierzchołki.
+		\I Wektory normalne.
+		\I Współrzędne tekstury (mapa UV).
+		\I Ładowanie tekstury.
+		\I Indeksowanie wierzchołków.
+		\I Shadery i VBO.
+		\EI
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Sieć}
+		\BI
+		\I Gniazdo sieciowe (socket).
+		\I Gniazda strumieniowe (połączeniowe) i datagramowe.
+		\I Gniazdo nasłuchujące.
+		\I Blokująca i nieblokująca akceptacja połączenia.
+		\I Port.
+		\I Uzyskiwanie adresu na podstawie ciągu znaków.
+		\I Podłączenie do zdalnego gniazda nasłuchującego.
+		\I send, recv
+		\I Protokół komunikacyjny.
+		\EI
+	\EB
+\end{frame}
+
+
+\end{document}
+

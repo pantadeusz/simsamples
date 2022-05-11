@@ -1,0 +1,143 @@
+\documentclass{beamer}
+
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[OT4]{fontenc}
+\usepackage{algpseudocode}
+\usepackage{beamerthemeshadow}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{shortcuts}
+
+\beamertemplateballitem
+\beamertemplatenumberedballsectiontoc
+
+\hypersetup{%
+  pdftitle={Symulacje i gry decyzyjne - sieć},%
+  pdfauthor={Tadeusz Puźniakowski}}
+
+\title[Networking]{Gry sieciowe}
+
+\author{Tadeusz Puźniakowski}
+
+\institute{PJATK}
+\date{2018}
+
+\newcounter{minisection}
+\newcommand{\minisectionframe}[1]{
+\frame{
+	\begin{center}
+	#1
+	\end{center}
+}}
+
+\newcommand{\smallhref}[1]{{\footnotesize\href{#1}{\url{#1}}}}
+
+\begin{document}
+
+\frame{\titlepage}
+
+
+\begin{frame}[fragile]
+	\BB{Sieć - plan wykładu}
+		\BI
+		\I Gniazda sieciowe - połączeniowe i bezpołączeniowe
+		\I Architektury komunikacji
+		\I Co gdzie kiedy - połączeniowe, bezpołączeniowe, 
+		\I Ogólnie o rozwiązaniach w popularnych silnikach gier
+		\EI
+	\EB
+\end{frame}
+
+
+\begin{frame}[fragile]
+	\BB{Gniazdo sieciowe}
+	Dwukierunkowy punkt końcowy połączenia. Gniazdo reprezentowane jest najczęściej przez identyfikator gniazda (liczbę całkowitą).
+	\EB
+	\BB{Port sieciowy}
+	Jest to liczba będąca parametrem gniazda sieciowego. Jest ona 16bitowa.
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Gniazdo datagramowe}
+	Gniazdo typu bezpołączeniowego. Prowadząc komunikację na takim gnieździe zawsze trzeba określić adres docelowy. Nie zabezpiecza transmisji przed utratą danych.
+	\EB
+	\BB{Gniazdo połączeniowe}
+	Gniazdo które jest sparowane z gniazdem po drógiej stronie połączenia. Pozwala na kontrolę transmisji. Komunikacja odbywa się poprzez zapis i odczyt z gniazda.
+	\EB
+	\BB{Gniazdo surowe}
+	Gniazdo które pozwala na ,,ręczne'' tworzenie pakietów. Najczęściej konieczne jest posiadanie uprawnień administratora aby z niego korzystać.
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Modele komunikacji w grach}
+	\BI
+	\I Klient-serwer
+	\I Peer-to-peer
+	\EI
+	
+	\BI
+	\I Symulacja po stronie serwera
+	\I Symulacja po stronie klienta
+	\EI
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Symulacja po stronie serwera -- Source Engine}
+		\href{https://developer.valvesoftware.com/wiki/Source\_Multiplayer\_Networking}{link: Sieć w Source Engine}
+		\BI
+		\I Serwer trzyma i rozsyła stan gry
+		\I Klienci wysyłają tylko wejście od użytkownika
+		\I Klienci wyświetlają stan z przed chwili z serwera
+		\I Klienci przewidują jaki bedzie ich własny stan, a korygują po otrzymaniu aktualnego od serwera
+		\I Trzymanie 1 sekundy historii stanów gry przez serwer
+		\EI
+		Komunikacja po gniazdach UDP
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Symulacja po stronie klienta -- Age of Empires}
+	\href{https://www.gamasutra.com/view/feature/131503/1500_archers_on_a_288_network_.php?print=1}{link: Sieć w AOE}
+		\BI
+		\I Wszyscy klienci symulują to samo
+		\I Stosunkowo długie tury ruchu
+		\I Dostosowanie długości tury do możliwości sieci
+		\I Lepiej jeśli jest większe opóźnienie niż zmienne
+		\EI
+		Komunikacja po gniazdach UDP
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Komunikacja P2P -- Awesomenauts}
+	\href{http://joostdevblog.blogspot.com/2014/09/core-network-structures-for-games.html}{link: Sieć w Awesomenauts}
+		\BI
+		\I Każda postać liczy samą siebię
+		\I Wybrany klient symuluje inne elementy gry
+		\EI
+		Komunikacja po gniazdach UDP
+	\EB
+\end{frame}
+
+\begin{frame}[fragile]
+	\BB{Ogólna zasada}
+		\BI
+		\I Prawie zawsze korzystamy z UDP, zobacz \href{http://ithare.com/tcp-peculiarities-for-games-part-1/}{tcp-peculiarities-for-games}
+		\I Liczby zmiennoprzecinkowe są ryzykowne, zobacz \href{https://blog.forrestthewoods.com/synchronous-rts-engines-and-a-tale-of-desyncs-9d8c3e48b2be}{problemy z desynchronizacją}
+		\I Kompensacja opóźnień.
+		\EI
+	\EB
+\end{frame}
+
+
+
+% https://stackoverflow.com/questions/7286592/set-tcp-quickack-and-tcp-nodelay
+% 
+
+\end{document}
+

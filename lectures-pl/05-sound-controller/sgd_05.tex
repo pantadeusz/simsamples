@@ -1,0 +1,54 @@
+\documentclass{beamer}
+
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[OT4]{fontenc}
+\usepackage{algpseudocode}
+\usepackage{beamerthemeshadow}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{shortcuts}
+
+\beamertemplateballitem
+\beamertemplatenumberedballsectiontoc
+
+\hypersetup{%
+  pdftitle={Symulacje i gry decyzyjne 5},%
+  pdfauthor={Tadeusz Puźniakowski}}
+
+\title[SGD 5]{Audio}
+
+\author{Tadeusz Puźniakowski}
+
+\institute{PJATK}
+\date{2017}
+
+\newcounter{minisection}
+\newcommand{\minisectionframe}[1]{
+\frame{
+	\begin{center}
+	#1
+	\end{center}
+}}
+
+\newcommand{\smallhref}[1]{{\footnotesize\href{#1}{\url{#1}}}}
+
+\begin{document}
+
+\frame{\titlepage}
+
+
+\begin{frame}[fragile]
+	\BB{Muzyka w SDL -- wersja bez dodatków}
+	Niskopoziomowo -- SDL rozpoczyna odtwarzanie i wywołuje callback który powinien uzupełnić bufor audio w momencie gdy potrzebne są kolejne próbki dźwięku.
+	\EB
+	\BB{Muzyka w SDL -- SDL\_mixer}
+	Biblioteka pozwalająca na wygodniejsze korzystanie z podstawowego interfejsu audio SDL.
+	\EB
+\end{frame}
+
+
+\end{document}
+
