@@ -28,9 +28,9 @@
 \newcounter{minisection}
 \newcommand{\minisectionframe}[1]{
 \frame{
-	\begin{center}
-	#1
-	\end{center}
+    \begin{center}
+    #1
+    \end{center}
 }}
 
 \newcommand{\smallhref}[1]{{\footnotesize\href{#1}{\url{#1}}}}
@@ -51,115 +51,131 @@
 \section{Co na części praktycznej}
 
 \begin{frame}[fragile]
-	\frametitle{Plan części praktycznej}
-	\BB{Kontakt}
-	tadeusz.puzniakowski@pjwstk.edu.pl
-	\EB
+    \frametitle{Plan części praktycznej}
+    \BB{Kontakt}
+    tadeusz.puzniakowski@pjwstk.edu.pl
+    \EB
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Plan części praktycznej}
-	\BB{Co na zajęciach}
-		Wykład jest przygotowaniem do lab. Zaliczenie tej części polega na napisaniu projektu (opowiem na ćwiczeniach).
-		\begin{itemize}
-		\item Elementy engine-u gry
-		\item SDL
-		\item Elementy fizyki w grach
-		\item Kwestie związane z prezentacją gry (grafika, dźwięk, kontrolery)
-		\item (jeśli wystarczy czasu) Elementy gry multiplayer
-		\end{itemize}
-	\EB
+    \frametitle{Plan części praktycznej}
+    \BB{Co na zajęciach}
+        Wykład jest przygotowaniem do lab. Zaliczenie tej części polega na napisaniu projektu (opowiem na ćwiczeniach).
+        \begin{itemize}
+        \item Elementy engine-u gry
+        \item SDL
+        \item Elementy fizyki w grach
+        \item Kwestie związane z prezentacją gry (grafika, dźwięk, kontrolery)
+        \item (jeśli wystarczy czasu) Elementy gry multiplayer
+        \end{itemize}
+    \EB
 \end{frame}
 
 
 \begin{frame}[fragile]
-	\frametitle{Plan dzisiejszego wykładu}
-	\BB{Co w planie na dzisiaj}
-		\begin{itemize}
-		\item Ogólnie o tym co to jest SDL
-		\BI
-		   \I Co to w ogóle jest?
-		   \I Dlaczego nie DirectX
-		   \I Kto korzysta z SDL i przykłady gier
-		\EI
-		\item Przykład "Witaj w Świecie"
-		\item Wyświetlenie obrazka
-		\item Obsługa klawiszy
-		\item Przykład na żywo
-		\end{itemize}
-	\EB
+    \frametitle{Plan dzisiejszego wykładu}
+    \BB{Co w planie na dzisiaj}
+        \begin{itemize}
+        \item Ogólnie o tym co to jest SDL
+        \BI
+           \I Co to w ogóle jest?
+           \I Dlaczego nie DirectX
+           \I Kto korzysta z SDL i przykłady gier
+        \EI
+        \item Przykład "Witaj w Świecie"
+        \item Wyświetlenie obrazka
+        \item Obsługa klawiszy
+        \item Przykład na żywo
+        \end{itemize}
+    \EB
 \end{frame}
-	
+    
 \section{Wstęp}
 
 \begin{frame}[fragile]
-	\frametitle{SDL}
-	\BB{SDL}
-	Simple DirectMedia Layer -- wieloplatformowa biblioteka programistyczna pozwalająca na niskopoziomową obsługę grafiki, dźwięku i kontrolerów gier.
-	
-	Polecam na początek: \url{https://icculus.org/SteamDevDays/}.
-	\EB
-	
-	\BB{Dlaczego nie DirectX}
-	Nie jest przenośny, oraz HelloWorld to koszmar:
-	 \url{https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HelloWorld/src/HelloWindow/D3D12HelloWindow.cpp}
-	\EB
+    \frametitle{SDL}
+    \BB{SDL}
+    Simple DirectMedia Layer -- wieloplatformowa biblioteka programistyczna pozwalająca na niskopoziomową obsługę grafiki, dźwięku i kontrolerów gier.
+    
+    Polecam na początek: \url{https://icculus.org/SteamDevDays/}.
+    \EB
+    
+    \BB{Dlaczego nie DirectX}
+    Nie jest przenośny, oraz HelloWorld to koszmar:
+     \url{https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HelloWorld/src/HelloWindow/D3D12HelloWindow.cpp}
+    \EB
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{SDL}
-	\BB{SDL -- kto z tego korzysta}
-	Oto przykłady firm i wybranych gier korzystających z SDL
-	\BI
-	\I Valve -- Counter Strike Global Offensive
-	\I THQ -- Painkiller
-	\I Double Fine Productions -- Psychonauts
-	\I Daedalic Entertainment -- Deponia
-	\I (oraz oczywiście wiele innych)
-	\EI
-	\EB
+    \frametitle{SDL}
+    \BB{SDL -- kto z tego korzysta}
+    Oto przykłady firm i wybranych gier korzystających z SDL
+    \BI
+    \I Valve -- Counter Strike Global Offensive
+    \I THQ -- Painkiller
+    \I Double Fine Productions -- Psychonauts
+    \I Daedalic Entertainment -- Deponia
+    \I (oraz oczywiście wiele innych)
+    \EI
+    \EB
 \end{frame}
 
 
 \begin{frame}[fragile]
-	\frametitle{Trochę prostej teorii}
-	\BB{Engine gry}
-	To jest pojęcie raczej powszechnie znane - jest to oprogramowanie które prezentuje ,,świat gry''.
-	W tym jest:
-	\BI
-	 \I Ładowanie świata gry
-	 \I Generowanie obrazu 
-	 \I Obsługa interfejsu użytkownika
-	 \I Generowanie kolejnych zmian ,,świata gry'' -- fizyka (różniczki)
-	\EI
-	\EB
+    \frametitle{Trochę prostej teorii}
+    \BB{Engine gry}
+    To jest pojęcie raczej powszechnie znane - jest to oprogramowanie które prezentuje ,,świat gry''.
+    W tym jest:
+    \BI
+     \I Ładowanie świata gry
+     \I Generowanie obrazu 
+     \I Obsługa interfejsu użytkownika
+     \I Generowanie kolejnych zmian ,,świata gry'' -- fizyka (różniczki)
+    \EI
+    \EB
 \end{frame}
 
+
+\begin{frame}[fragile]
+    \BB{Klasyczna organizacja pętli gry}
+    \begin{verbatim}
+    int main(int argc, char** argv) {
+        while(playing) {
+            input();
+            timers();
+            update_world();
+            render();
+            swap_buffers();
+        }
+    }
+    \end{verbatim}
+    \EB
+\end{frame}
 
 
 \section{Programowanie dla wielu platform}
 
 \begin{frame}[fragile]
-	\BB{Elementy specyficzne dla danej platformy}
-	Dobra praktyka
-	\begin{verbatim}
-	#if WINDOWS
-	   cośtam dla windows
-	#elif PLAYSTATION
-	   cośtam dla playstation
-	#elif LINUX
-	   cośtam dla linux
-	#else
-	   #error Nieobsługiwana platforma
-	#endif
-	\end{verbatim}
-	\EB
+    \BB{Elementy specyficzne dla danej platformy}
+    Dobra praktyka
+    \begin{verbatim}
+    #if WINDOWS
+       cośtam dla windows
+    #elif PLAYSTATION
+       cośtam dla playstation
+    #elif LINUX
+       cośtam dla linux
+    #else
+       #error Nieobsługiwana platforma
+    #endif
+    \end{verbatim}
+    \EB
 \end{frame}
 
 
 \begin{frame}[fragile]
- 	\BB{Witaj Świecie -- klasyk}
-	\begin{verbatim}
+     \BB{Witaj Świecie -- klasyk}
+    \begin{verbatim}
     SDL_Init( SDL_INIT_EVERYTHING ); 
     auto window = SDL_CreateWindow( "Okienko SDL", 
              SDL_WINDOWPOS_UNDEFINED, 
@@ -169,13 +185,13 @@
     SDL_Delay(2000);
     SDL_DestroyWindow( window );
     SDL_Quit();
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 
 \begin{frame}[fragile]
- 	\BB{Witaj Świecie -- wersja OpenGL}
-	\begin{verbatim}
+     \BB{Witaj Świecie -- wersja OpenGL}
+    \begin{verbatim}
     SDL_Init( SDL_INIT_EVERYTHING ); 
     auto window = SDL_CreateWindow( "Okienko SDL", 
              SDL_WINDOWPOS_UNDEFINED, 
@@ -188,112 +204,112 @@
     SDL_Delay(2000);
     SDL_DestroyWindow( window );
     SDL_Quit(); 
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 
 
 \begin{frame}[fragile]
-	\BB{Inicjalizacja SDL}
-	\begin{verbatim}
+    \BB{Inicjalizacja SDL}
+    \begin{verbatim}
     SDL_Init( SDL_INIT_EVERYTHING ); 
- 	\end{verbatim}
- 	\EB
-	\BB{Zwalnianie zasobów}
-	\begin{verbatim}
+     \end{verbatim}
+     \EB
+    \BB{Zwalnianie zasobów}
+    \begin{verbatim}
     SDL_Quit(); 
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Stworzenie okienka oraz kontekstu OpenGL}
-	\begin{verbatim}
+    \BB{Stworzenie okienka oraz kontekstu OpenGL}
+    \begin{verbatim}
     auto window = SDL_CreateWindow( "Okienko SDL", 
              SDL_WINDOWPOS_UNDEFINED, 
              SDL_WINDOWPOS_UNDEFINED, 
              640, 480, 
              SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL ); 
     SDL_GL_CreateContext(window);
- 	\end{verbatim}
- 	SDL\_WINDOW\_OPENGL oznacza, że korzystamy z OpenGL
- 	\EB
-	\BB{Zniszczenie okienka}
-	\begin{verbatim}
+     \end{verbatim}
+     SDL\_WINDOW\_OPENGL oznacza, że korzystamy z OpenGL
+     \EB
+    \BB{Zniszczenie okienka}
+    \begin{verbatim}
     SDL_DestroyWindow( window );
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Wyświetlenie obrazu z backbufora OpenGL}
-	\begin{verbatim}
+    \BB{Wyświetlenie obrazu z backbufora OpenGL}
+    \begin{verbatim}
     SDL_GL_SwapWindow(window);
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Opóźnienie w wersji SDL}
-	\begin{verbatim}
+    \BB{Opóźnienie w wersji SDL}
+    \begin{verbatim}
     SDL_Delay(2000);
- 	\end{verbatim}
- 	\EB
-	\BB{Opóźnienie w wersji C++11}
-	\begin{verbatim}
+     \end{verbatim}
+     \EB
+    \BB{Opóźnienie w wersji C++11}
+    \begin{verbatim}
     sleep_for(milliseconds(33));
- 	\end{verbatim}
- 	Jeśli prefiksujemy wszystkie przestrzenie nazw:
-	\begin{verbatim}
+     \end{verbatim}
+     Jeśli prefiksujemy wszystkie przestrzenie nazw:
+    \begin{verbatim}
     std::this_thread::sleep_for ( 
          std::chrono::milliseconds(1000)
     );
- 	\end{verbatim}
- 	\EB
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Inicjalizacja renderera SDL}
-	\begin{verbatim}
-	SDL_Window *window;
-	SDL_Renderer *renderer;
-	SDL_CreateWindowAndRenderer(800, 600, 0, 
-	       &window, &renderer);
- 	\end{verbatim}
- 	\EB
+    \BB{Inicjalizacja renderera SDL}
+    \begin{verbatim}
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_CreateWindowAndRenderer(800, 600, 0, 
+           &window, &renderer);
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Wyświetlenie piksela za pomocą renderera}
-	\begin{verbatim}
-	SDL_RenderDrawPoint(renderer, x, y);
-	SDL_RenderPresent(renderer);
- 	\end{verbatim}
- 	\EB
+    \BB{Wyświetlenie piksela za pomocą renderera}
+    \begin{verbatim}
+    SDL_RenderDrawPoint(renderer, x, y);
+    SDL_RenderPresent(renderer);
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Pobranie stanu klawiatury}
-	\begin{verbatim}
-	const Uint8 *state = SDL_GetKeyboardState(NULL);
-	if (state[SDL_SCANCODE_LEFT]) ....
- 	\end{verbatim}
- 	\EB
+    \BB{Pobranie stanu klawiatury}
+    \begin{verbatim}
+    const Uint8 *state = SDL_GetKeyboardState(NULL);
+    if (state[SDL_SCANCODE_LEFT]) ....
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Pętla zdarzeń (event loop)}
-	\begin{verbatim}
-	SDL_Event e;
-	while( SDL_PollEvent( &e ) != 0 ) { 
-	  if( e.type == SDL_QUIT ) { 
-	    finishCondition = true;
-	  } else if (e.type == SDL_KEYDOWN) {
-	    if (e.key.keysym.sym == SDLK_ESCAPE)
-	      finishCondition = true;
-	  }
-	}
- 	\end{verbatim}
- 	\EB
+    \BB{Pętla zdarzeń (event loop)}
+    \begin{verbatim}
+    SDL_Event e;
+    while( SDL_PollEvent( &e ) != 0 ) { 
+      if( e.type == SDL_QUIT ) { 
+        finishCondition = true;
+      } else if (e.type == SDL_KEYDOWN) {
+        if (e.key.keysym.sym == SDLK_ESCAPE)
+          finishCondition = true;
+      }
+    }
+     \end{verbatim}
+     \EB
 \end{frame}
 \begin{frame}[fragile]
-	\BB{Przykład na żywo}
-	\IMG{9cm}{HOW-TO-DRAW-A-HORSE.jpg}
- 	\EB
- 	{\small{za \url{http://i.huffpost.com/gen/482429/HOW-TO-DRAW-A-HORSE.jpg}}}
+    \BB{Przykład na żywo}
+    \IMG{9cm}{HOW-TO-DRAW-A-HORSE.jpg}
+     \EB
+     {\small{za \url{http://i.huffpost.com/gen/482429/HOW-TO-DRAW-A-HORSE.jpg}}}
 \end{frame}
 
 
