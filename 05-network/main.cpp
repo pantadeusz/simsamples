@@ -64,12 +64,12 @@ int find_addresses(const char *addr_txt, const char *port_txt, int ai_family,
     hints.ai_family = ai_family;    ///< IPv4 or IPv6
     hints.ai_socktype = SOCK_DGRAM; ///< datagram socket
 
-    struct addrinfo *addr_p, *rp;
+    struct addrinfo *addr_p;
     int err = getaddrinfo(addr_txt, port_txt, &hints, &addr_p);
     if (err) {
         return err;
     }
-    for (rp = addr_p; rp != NULL; rp = rp->ai_next) {
+    for (struct addrinfo *rp = addr_p; rp != NULL; rp = rp->ai_next) {
         if (*ai_addrlen < rp->ai_addrlen) {
             fprintf(stderr,
                     "[E] The memory buffer for addrlen is too small - %d, but it "
@@ -126,7 +126,7 @@ int main_server(int argc, char **argv) {
                     sendto(udp_socket, buffer, 128, 0, (struct sockaddr *)&peer_addr,
                            peer_addr_len);
                 }
-                break;
+               // break;
             }
             printf("waiting...\n");
             sleep(1);

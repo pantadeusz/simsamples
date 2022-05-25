@@ -16,7 +16,6 @@
 // std::random_device rd;  //Will be used to obtain a seed for the random number engine
 std::mt19937 random_generator((std::random_device())()); //Standard mersenne_twister_engine seeded with rd()
 
-
 using position_t = std::array<double, 2>; ///< 2d graphics and physics
 
 position_t operator+(const position_t &a, const position_t &b) {
@@ -39,18 +38,27 @@ public:
     position_t v;  // predkosc
     position_t a;  // przyspieszenie
 
-    unsigned long int id;
+    uint64_t id;
 
-    double ttl;           // czas zycia (w sekundach)
+    double ttl;           // czas zycia
+
+    int owner;
 
     particle_t() {
-        static unsigned long int next_id = 0;
+        static uint64_t next_id = 0;
         p = {0,0};
         v = {0,0};
         ttl = 0;
         id = next_id++;
+        owner = 0;
     };
 
+/**
+ * @brief 
+ * 
+ * @param dt 
+ * @return particle_t 
+ */
     particle_t update(const double dt) const {
         particle_t updated = *this;
         updated.p = p + v * dt + a*dt*dt/2.0;
@@ -71,20 +79,22 @@ std::vector < particle_t > update_particle_ts(std::vector < particle_t > const &
     return ret_particle_ts;
 }
 
-std::vector< particle_t > generate_explosion(position_t p, int n, double power, position_t accel, int max_ttl) {
+std::vector< particle_t > generate_explosion(position_t p, int owner, int n, double power, position_t accel, int max_ttl) {
     std::normal_distribution<double> distrib;
     std::uniform_real_distribution<double> angle_distr;
     std::uniform_int_distribution<int> ttl_distribution(1,std::max(2,max_ttl));
     std::vector< particle_t > ret;
+    double a0 = angle_distr(random_generator)*M_PI*2;
     for (int i = 0; i < n; i++) {
-        particle_t particle_t;
-        particle_t.p = p;
-        double v0 = distrib(random_generator)*power;
-        double a = angle_distr(random_generator)*M_PI*2.0;
-        particle_t.v = {std::cos(a)*v0,std::sin(a)*v0};
-        particle_t.a = accel;
-        particle_t.ttl = ttl_distribution(random_generator);;
-        ret.push_back(particle_t);
+        particle_t particle;
+        particle.p = p;
+        double v0 = std::abs(distrib(random_generator)*power);
+        double a = a0 + angle_distr(random_generator)*M_PI/2;//*2.0;
+        particle.v = {std::cos(a)*v0,std::sin(a)*v0};
+        particle.a = accel;
+        particle.ttl = ttl_distribution(random_generator);
+        particle.owner = owner;
+        ret.push_back(particle);
     }
     return ret;
 }
@@ -93,7 +103,7 @@ class game_events_t {
 public:
     uint64_t timestamp;
     bool quit;
-    std::vector<std::pair<double,position_t>> explosions_coordinates;
+    std::vector<std::tuple<double,int,position_t>> new_explosions;
 };
 
 class game_state_t {
@@ -116,9 +126,9 @@ public:
     static game_state_t physics(const game_state_t &gs, const game_events_t &events) {
         game_state_t game_state = gs;
 
-        for (auto [power, p]: events.explosions_coordinates) {
-            std::cout << "power: " << power <<  " at " << p[0] << " " << p[1] <<std::endl;
-            auto new_explosion = generate_explosion(p, 500, 100*power+1, {0,20}, 200);
+        for (auto [power, id, p]: events.new_explosions) {
+            std::cout << "bam: " << power <<  " at " << p[0] << " " << p[1] <<std::endl;
+            auto new_explosion = generate_explosion(p, id, 500, 100*power+1, {0,20}, 200);
             game_state.particle_ts.insert(game_state.particle_ts.end(), new_explosion.begin(), new_explosion.end());
         }
         game_state.particle_ts = update_particle_ts(game_state.particle_ts, game_state.dt);
@@ -145,12 +155,18 @@ game_events_t get_all_events(const uint64_t timestamp) {
         } else if (e.type == SDL_MOUSEBUTTONUP) {
             std::cout << e.button.x << " " << e.button.y << std::endl;
             position_t p = {(double)e.button.x, (double)e.button.y};
-            ret_events.explosions_coordinates.push_back({(((double)(e.button.timestamp - button_down_moments[e.button.button] ))/1000.0), p});
+            ret_events.new_explosions.push_back({(((double)(e.button.timestamp - button_down_moments[e.button.button] ))/1000.0), e.button.button, p});
         }
     }
     return ret_events;
 }
 
+/**
+ * @brief Graphics engine implementation
+ * 
+ * it requires knowledge of game_t class
+ * 
+ */
 class graphics_t {
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -171,7 +187,10 @@ public:
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         SDL_RenderClear(renderer);
         for (auto particle_t: game_state.particle_ts) {
-            SDL_SetRenderDrawColor(renderer, std::min((int)255,(int)particle_t.ttl*4), std::min((int)255,(int)particle_t.ttl), std::min((int)255,(int)particle_t.ttl), 255);
+            SDL_SetRenderDrawColor(renderer, 
+            std::min((int)255,(int)particle_t.ttl*2*((1+particle_t.owner) % 3)), 
+            std::min((int)255,(int)particle_t.ttl*2*((2+particle_t.owner) % 3)), 
+            std::min((int)255,(int)particle_t.ttl*2*((3+particle_t.owner) % 3)), 255);
             SDL_RenderDrawPoint(renderer, particle_t.p[0], particle_t.p[1]);
         }
         SDL_RenderPresent(renderer);
