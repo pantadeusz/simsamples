@@ -69,7 +69,7 @@ struct explosion_t {
         ret.game_tick = game_tick;
         ret.power = power;
         ret.p[0] = p[0];
-        ret.p[0] = p[0];
+        ret.p[1] = p[1];
         return ret;
     }
     static explosion_t from_message(explosion_message_t &message) {
@@ -78,7 +78,7 @@ struct explosion_t {
         ret.game_tick = message.game_tick;
         ret.power = message.power;
         ret.p[0] = message.p[0];
-        ret.p[0] = message.p[0];
+        ret.p[1] = message.p[1];
         return ret;
     }
 };
