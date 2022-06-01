@@ -133,7 +133,7 @@ public:
 };
 
 
-game_events_t get_all_events(const uint64_t timestamp) {
+game_events_t get_all_events(const uint64_t timestamp, net::player_t player) {
     SDL_Event e;
     static std::map<uint64_t,uint64_t> button_down_moments;
 
@@ -151,8 +151,8 @@ game_events_t get_all_events(const uint64_t timestamp) {
             net::explosion_t explosion;
             std::cout << e.button.x << " " << e.button.y << std::endl;
             explosion.p = {(double)e.button.x, (double)e.button.y};
-            explosion.power =                 (((double)(e.button.timestamp - button_down_moments[e.button.button] ))/1000.0);
-            explosion.id =                 e.button.button;
+            explosion.power = (((double)(e.button.timestamp - button_down_moments[e.button.button] ))/1000.0);
+            explosion.id = player.id;
             explosion.game_tick = timestamp;
             ret_events.new_explosions.push_back(explosion);
         }
@@ -283,7 +283,7 @@ public:
         for (int i = 0; i < players.size()+1; i++) {
             int found = -1;
             for (auto [addr, player] : players) {
-                auto [id, name] = player;
+                auto [type,id, name] = player;
                 if (id == i) {
                     found = id;
                     break;
@@ -294,9 +294,9 @@ public:
         return -1;
     }
 
-    static void handle_payer_t(game_server_t *pthis, std::any message, net_addr_t addr) {
+    static void handle_payer_t(game_server_t *pthis, net::message_t message, net_addr_t addr) {
         // send back our introduction
-        net::player_t value = std::any_cast<net::player_t> (message);
+        net::player_t value = message.player;
         std::cerr << "hello or goodbye message.... " << value.id << " " << value.player_name  << std::endl;
         if (value.id >= 0) {
             /// goodbye message
@@ -310,24 +310,29 @@ public:
             // hello message
             value.id = pthis->find_free_player_id();
             pthis->players[addr] = value;
-            std::array<char,128> buffer;
-            buffer = serialize_message(value);
-            sendto(pthis->udp_socket, buffer.data(), buffer.size(), 0, (struct sockaddr *)&addr.first, addr.second);
+            message.player = value;
+            sendto(pthis->udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
             std::cerr << "hello message>>>> " << value.id << " " << value.player_name  << std::endl;
         }
     }
 
-
-    static void handle_explosion_t(game_server_t *pthis, std::any message, net_addr_t addr) {
-        // send back our introduction
-        auto value = std::any_cast<net::explosion_t> (message);
-
+    static void handle_explosion_t(game_server_t *pthis, net::message_t message, net_addr_t from_addr) {
+        int from_id = pthis->players[from_addr].id;
+        for (auto [addr, player] : pthis->players) {
+            if (player.id != from_id) {
+                message.explosion.id = from_id;
+                sendto(pthis->udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
+            }
+        }
     }
-    void handle_incoming_message(std::any message, net_addr_t addr) {
-        if (typeid(net::player_t) == message.type()) {
-            handle_payer_t(this,message, addr);
+
+    void handle_incoming_message(net::message_t message, net_addr_t addr) {
+        if (net::MESSAGE_PLAYER == message.type) {
+            handle_payer_t(this, message, addr);
+        } else if (net::MESSAGE_EXPLOSION == message.type) {
+            handle_explosion_t(this, message, addr);
         } else {
-            std::cerr << "unknown message...." << message.type().hash_code() << std::endl;
+            std::cerr << "unknown message...." << message.type << std::endl;
         }
 
     }
@@ -335,20 +340,21 @@ public:
     int data_exchange() {
         while (true) {
             net_addr_t addr = {{}, sizeof(struct sockaddr_storage)};
-            std::array<char,128> buffer;
-            ssize_t rsize = recvfrom(udp_socket, buffer.data(), buffer.size(), MSG_DONTWAIT,
+            net::message_t buffer;
+            ssize_t rsize = recvfrom(udp_socket, buffer.data, sizeof(buffer.data), MSG_DONTWAIT,
                                      (struct sockaddr *)&addr.first, &addr.second);
             if (rsize < 128) break; // get all messages.
-            std::any message = deserialize_message(buffer);
-            handle_incoming_message(message, addr);
+
+            handle_incoming_message(buffer, addr);
         }
         return 0;
     }
 
     int run() {
+        using namespace std::chrono_literals;
         while (true) {
             data_exchange();
-            sleep(1);
+            std::this_thread::sleep_for(10ms);
         }
     }
 };
@@ -367,8 +373,28 @@ public:
 
     std::map<int,net::player_t> players;
 
-    void get_all_network_events() {
+    game_events_t get_all_network_events(game_events_t events) {
+        ssize_t rsize = 0;
+        net::message_t buf;
 
+        while ((rsize = recvfrom(client_socket, buf.data, sizeof(buf.data), 0, NULL, 0)) == sizeof(net::message_t))
+        {
+            if (buf.type == net::MESSAGE_EXPLOSION) {
+                events.new_explosions.push_back(net::explosion_t::from_message(buf.explosion));
+            } else {
+                std::cerr << "unknown message" << std::endl;
+            }
+        }
+        return events;
+    }
+    void send_events(const game_events_t &events) {
+        auto [s_addr,s_len] =server_addr;
+        for (auto e : events.new_explosions) {
+            net::message_t buf = {explosion:e.to_message()};
+
+            sendto(client_socket, buf.data, sizeof(buf.data), 0,
+                   (struct sockaddr *)&s_addr, s_len);
+        }
     }
 
     void handshake(std::string player_name, std::string hostname, int port) {
@@ -386,22 +412,24 @@ public:
         auto addresses = find_addresses(hostname, port);
         std::cout << "had adresses, now try to connect" << std::endl;
         for (auto [s_addr,s_len] : addresses) {
-            local_player.player_name = player_name;
+            strcpy(local_player.player_name, player_name.c_str());
             local_player.id = -1;
-            auto buf = serialize_message(local_player);
-            sendto(client_socket, buf.data(), buf.size(), 0, (struct sockaddr *)&s_addr,               s_len);
+            local_player.type = net::MESSAGE_PLAYER;
+            net::message_t buf;
+            buf.player = local_player;
+            sendto(client_socket, buf.data, sizeof(buf.data), 0, (struct sockaddr *)&s_addr, s_len);
 
             std::cout <<"hello getting.." << std::endl;
             struct sockaddr_storage peer_addr;
             socklen_t peer_addr_len = sizeof(struct sockaddr_storage);
             for (int i = 0; i < 5; i++) {
-                ssize_t rsize = recvfrom(client_socket,                                 buf.data(), buf.size(), 0,
+                ssize_t rsize = recvfrom(client_socket, buf.data, sizeof(buf.data), 0,
                                          (struct sockaddr *)&peer_addr, &peer_addr_len);
                 if (rsize == 128) break;
                 std::this_thread::sleep_for(1s);
             }
-            local_player = std::any_cast<net::player_t> (deserialize_message( buf ));
-            if (local_player.id != -1) {
+            local_player = buf.player;
+            if ((local_player.id != -1) && (local_player.type == net::MESSAGE_PLAYER)) {
                 std::cout << "connected: " << local_player.id << " " << local_player.player_name << std::endl;
                 server_addr = {s_addr,s_len};
                 break;
@@ -415,8 +443,8 @@ public:
     void goodbye() {
         if (local_player.id != -1) {
             auto [s_addr,s_len] =server_addr;
-            auto buf = serialize_message(local_player);
-            sendto(client_socket, buf.data(), buf.size(), 0, (struct sockaddr *)&s_addr,               s_len);
+            net::message_t buf = {player:local_player};
+            sendto(client_socket, buf.data, sizeof(buf.data), 0, (struct sockaddr *)&s_addr,               s_len);
         }
 
     }
@@ -441,8 +469,9 @@ int run_game_client(std::string player_name, std::string hostname, int port) {
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
     while (true) {
         // zdarzenia
-        auto events = get_all_events(game_state.game_tick);
-        game_client.get_all_network_events();
+        auto events = get_all_events(game_state.game_tick, game_client.local_player);
+        game_client.send_events(events);
+        events = game_client.get_all_network_events(events);
         // physics
         game_state_t new_game_state = game_state_t::physics(game_state, events);
         game_state = new_game_state; // update state

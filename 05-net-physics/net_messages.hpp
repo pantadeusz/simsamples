@@ -26,80 +26,63 @@ position_t operator/(const position_t &a, const double &b) {
 
 namespace net {
 
-class player_t {
-public:
+const int MESSAGE_PLAYER = 1;
+const int MESSAGE_EXPLOSION = 2;
+
+struct player_t {
+    int type;
     int id;
-    std::string player_name;
-
-    static player_t from(const std::array<char,128> &data) {
-        std::size_t type_code = *((std::size_t *)data.data());
-        net::player_t ret;
-        ret.id = *((int *)(data.data()+sizeof(std::size_t)));
-        for (auto c : std::vector<char> (data.begin()+sizeof(std::size_t)+sizeof(int), data.end())) {
-            if (c!=0)ret.player_name = ret.player_name + c;
-            else break;
-        }
-        return ret;
-    }
-
-    static std::array<char,128> to_data(const std::any &message) {
-        std::array<char,128> data;
-        int i = sizeof(size_t);//exclude type
-        *(size_t*)data.data() = message.type().hash_code();
-
-        auto player = std::any_cast<net::player_t>( message );
-        *((int *)(data.data()+sizeof(std::size_t))) = player.id;
-        i+= sizeof(int);
-        for (char c : player.player_name)
-            data[i++] = c;
-        return data;
-    }
+    char player_name[32];
 };
 
-class explosion_t {
-public:
+
+struct explosion_message_t {
+    int type;
+    int id;
+    uint64_t game_tick;
+    double power;
+    double p[2];
+};
+
+union message_t {
+    int type;
+    player_t player;
+    explosion_message_t explosion;
+    unsigned char data[128];
+};
+
+
+
+
+
+
+struct explosion_t {
     int id;
     uint64_t game_tick;
     double power;
     position_t p;
 
-    static explosion_t from(const std::vector<char> &data) {
-        explosion_t explosion;
-        return explosion;
+    explosion_message_t to_message() {
+        explosion_message_t ret;
+        ret.type = MESSAGE_EXPLOSION;
+        ret.id = id;
+        ret.game_tick = game_tick;
+        ret.power = power;
+        ret.p[0] = p[0];
+        ret.p[0] = p[0];
+        return ret;
     }
-    static std::array<char,128> to_data(const std::any &message) {
-        std::array<char,128> data;
-        int i = sizeof(size_t);//exclude type
-        *(size_t*)data.data() = message.type().hash_code();
-
-        auto explosion = std::any_cast<net::explosion_t>( message );
-
-        return data;
+    static explosion_t from_message(explosion_message_t &message) {
+        explosion_t ret;
+        ret.id = message.id;
+        ret.game_tick = message.game_tick;
+        ret.power = message.power;
+        ret.p[0] = message.p[0];
+        ret.p[0] = message.p[0];
+        return ret;
     }
 };
-}
 
-
-inline std::any deserialize_message(const std::array<char,128> &data) {
-    //hash_code
-    std::size_t type_code = *((std::size_t *)data.data());
-    if (type_code == typeid(net::player_t).hash_code()) {
-        return net::player_t::from(data);
-    }
-    throw std::invalid_argument("bad data type");
-}
-
-inline const std::array<char,128> serialize_message(std::any message) {
-    std::array<char,128> data;
-    for (unsigned int i = 0; i < data.size(); i++) data[i] = 0;
-    int i = sizeof(size_t);//exclude type
-    *(size_t*)data.data() = message.type().hash_code();
-    if (typeid(net::player_t) == message.type()) {
-        return net::player_t::to_data(message);
-    } else {
-        throw std::invalid_argument("bad data type");
-    }
-    return data;
 }
 
 
