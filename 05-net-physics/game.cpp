@@ -86,7 +86,7 @@ std::vector< particle_t > generate_explosion(position_t p, int owner, int n, dou
         particle_t particle;
         particle.p = p;
         double v0 = std::abs(distrib(random_generator)*power);
-        double a = a0 + angle_distr(random_generator)*M_PI/2;//*2.0;
+        double a = a0 + angle_distr(random_generator)*M_PI*2.0;
         particle.v = {std::cos(a)*v0,std::sin(a)*v0};
         particle.a = accel;
         particle.ttl = ttl_distribution(random_generator);
@@ -96,37 +96,33 @@ std::vector< particle_t > generate_explosion(position_t p, int owner, int n, dou
     return ret;
 }
 
-class game_events_t {
-public:
-    uint64_t timestamp;
-    bool quit;
-    std::vector<net::explosion_t> new_explosions;
-};
+
+using game_events_t = std::list<net::message_t>;
 
 class game_state_t {
 public:
-    double fps;
-    double dt;
     uint64_t game_tick;
 
     std::vector < particle_t > particle_ts;
 
     game_state_t() = default;
 
-    game_state_t(double fps) {
-        this->fps=fps;
-        dt=1.0/fps;
-        uint64_t game_tick = 0;
+    game_state_t(uint64_t game_tick_) {
+        game_tick = game_tick_;
     };
 
     static game_state_t physics(const game_state_t &gs, const game_events_t &events) {
         game_state_t game_state = gs;
 
-        for (auto explosion: events.new_explosions) {
-            auto new_explosion = generate_explosion(explosion.p, explosion.id, 500, 100*explosion.power+1, {0,20}, 200);
-            game_state.particle_ts.insert(game_state.particle_ts.end(), new_explosion.begin(), new_explosion.end());
+        for (auto event: events) {
+            // && (event.explosion.game_tick == gs.game_tick)
+            if ((event.type == net::MESSAGE_EXPLOSION) ) {
+                auto explosion = event.explosion;
+                auto new_explosion = generate_explosion(explosion.p, explosion.id, 500, 100*explosion.power+1, {0,20}, 200);
+                game_state.particle_ts.insert(game_state.particle_ts.end(), new_explosion.begin(), new_explosion.end());
+            }
         }
-        game_state.particle_ts = update_particle_ts(game_state.particle_ts, game_state.dt);
+        game_state.particle_ts = update_particle_ts(game_state.particle_ts, net::dt);
         game_state.game_tick++;
         return game_state;
     }
@@ -138,11 +134,13 @@ game_events_t get_all_events(const uint64_t timestamp, net::player_t player) {
     static std::map<uint64_t,uint64_t> button_down_moments;
 
     game_events_t ret_events;
-    ret_events.timestamp = timestamp;
-    ret_events.quit = false;
+    //ret_events.quit = false;
     while( SDL_PollEvent( &e ) != 0 ) {
         if( e.type == SDL_QUIT ) {
-            ret_events.quit = true;
+            net::end_game_t q;
+            q.game_tick = timestamp;
+            q.quit = true;
+            ret_events.push_back(q.m());
         } else if (e.type == SDL_KEYDOWN) {
         } else if (e.type == SDL_KEYUP) {
         } else if (e.type == SDL_MOUSEBUTTONDOWN) {
@@ -153,8 +151,9 @@ game_events_t get_all_events(const uint64_t timestamp, net::player_t player) {
             explosion.p = {(double)e.button.x, (double)e.button.y};
             explosion.power = (((double)(e.button.timestamp - button_down_moments[e.button.button] ))/1000.0);
             explosion.id = player.id;
+            explosion.type = net::MESSAGE_EXPLOSION;
             explosion.game_tick = timestamp;
-            ret_events.new_explosions.push_back(explosion);
+            ret_events.push_back({explosion:explosion});
         }
     }
     return ret_events;
@@ -187,9 +186,9 @@ public:
         SDL_RenderClear(renderer);
         for (auto particle_t: game_state.particle_ts) {
             SDL_SetRenderDrawColor(renderer,
-                                   std::min((int)255,(int)particle_t.ttl*2*((1+particle_t.owner) % 3)),
-                                   std::min((int)255,(int)particle_t.ttl*2*((2+particle_t.owner) % 3)),
-                                   std::min((int)255,(int)particle_t.ttl*2*((3+particle_t.owner) % 3)), 255);
+                                   std::min((int)255,(int)particle_t.ttl*((1+particle_t.owner) % 8)),
+                                   std::min((int)255,(int)particle_t.ttl*((3+particle_t.owner) % 8)),
+                                   std::min((int)255,(int)particle_t.ttl*((6+particle_t.owner) % 8)), 255);
             SDL_RenderDrawPoint(renderer, particle_t.p[0], particle_t.p[1]);
         }
         SDL_RenderPresent(renderer);
@@ -228,11 +227,14 @@ int bind_socket(unsigned int port_nr) {
 using net_addr_t = std::pair<struct sockaddr_storage,socklen_t>;
 // operator that allows for comparing two adresses.
 bool operator<(const net_addr_t & a, const net_addr_t &b) {
-    for (int i = 0; i < std::min(a.second, b.second); i++) {
-        if (((char *)&(a.first))[i] < ((char *)&(b.first))[i]) return true;
+    uint64_t aa = 0,bb=0;
+    for (int i = 0 ; i < a.second; i++) {
+        aa = (aa << 4)+((char *)&(a.first))[i];
     }
-    if (a.second < b.second) return true;
-    return false;
+    for (int i = 0 ; i < b.second; i++) {
+        bb = (bb << 4)+((char *)&(b.first))[i];
+    }
+    return aa < bb;
 }
 
 
@@ -270,28 +272,21 @@ class game_server_t {
 public:
     int udp_socket;
 
-    std::map<net_addr_t, net::player_t> players;
+    uint64_t game_tick;
+
+    std::map<uint16_t, std::pair<net::player_t,net_addr_t>> players;
 
     game_server_t( int port) {
         udp_socket = bind_socket(port);
+        game_tick = random_generator();
     }
     virtual ~game_server_t() {
         close(udp_socket);
     }
 
     int find_free_player_id() {
-        for (int i = 0; i < players.size()+1; i++) {
-            int found = -1;
-            for (auto [addr, player] : players) {
-                auto [type,id, name] = player;
-                if (id == i) {
-                    found = id;
-                    break;
-                }
-            }
-            if (found == -1) return i;
-        }
-        return -1;
+        static int last_id = 0;
+        return ++last_id;
     }
 
     static void handle_payer_t(game_server_t *pthis, net::message_t message, net_addr_t addr) {
@@ -300,8 +295,8 @@ public:
         std::cerr << "hello or goodbye message.... " << value.id << " " << value.player_name  << std::endl;
         if (value.id >= 0) {
             /// goodbye message
-            if (pthis->players.count(addr)) {
-                pthis->players.erase(addr);
+            if (pthis->players.count(value.id)) {
+                pthis->players.erase(value.id);
                 std::cerr << "goodbye message>>>> " << value.id << " " << value.player_name  << std::endl;
             } else {
                 std::cerr << "player not found but wants to disconnect" << std::endl;
@@ -309,20 +304,31 @@ public:
         } else {
             // hello message
             value.id = pthis->find_free_player_id();
-            pthis->players[addr] = value;
-            message.player = value;
+            value.game_tick = pthis->game_tick;
+            pthis->players[value.id] = {value,addr};
+            message = value.m();
             sendto(pthis->udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
             std::cerr << "hello message>>>> " << value.id << " " << value.player_name  << std::endl;
+            for (auto [addr, player] : pthis->players) {
+                std::cout << "    PLAYER: " <<player.first.id << " : " << player.first.player_name << std::endl;
+            }
         }
     }
 
     static void handle_explosion_t(game_server_t *pthis, net::message_t message, net_addr_t from_addr) {
-        int from_id = pthis->players[from_addr].id;
-        for (auto [addr, player] : pthis->players) {
-            if (player.id != from_id) {
-                message.explosion.id = from_id;
-                sendto(pthis->udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
-            }
+        int from_id = pthis->players[message.explosion.id].first.id;
+        if (message.explosion.id != from_id) {
+            std::cout << "ids don't match" << std::endl;
+            return;
+        }
+        for (auto [id, player] : pthis->players) {
+            //if (player.id != from_id) {
+            if (message.explosion.id != from_id) std::cerr << "somehow the from_id " << from_id << " is different than that in explosion "<<message.explosion.id<<"..." << std::endl;
+            message.explosion.id = from_id;
+            std::cout << "   explosion to " << player.first.id << " from " << from_id << " serverTick: " << pthis->game_tick << " clientTick: " << message.explosion.game_tick  << std::endl;
+            auto addr = player.second;
+            sendto(pthis->udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
+            //}
         }
     }
 
@@ -347,14 +353,39 @@ public:
 
             handle_incoming_message(buffer, addr);
         }
+        // send tick info if needed
+        {
+            std::uniform_real_distribution<double> distr;
+            if (distr(random_generator) < 0.1) { // send all tick info
+                net::tick_t tick;
+                tick.game_tick = game_tick;
+                auto message = tick.m();
+                for (auto &[id, player]:players) {
+                    auto addr = player.second;
+                    sendto(udp_socket, message.data, sizeof(message.data), 0, (struct sockaddr *)&addr.first, addr.second);
+                }
+            }
+
+        }
         return 0;
     }
 
     int run() {
         using namespace std::chrono_literals;
+        using namespace std::chrono;
+        using namespace std;
+        game_tick = 0;
+        std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
         while (true) {
-            data_exchange();
-            std::this_thread::sleep_for(10ms);
+            data_exchange(); // data exchange is less frequent than the players ticks
+            auto next_time = current_time + microseconds ((long long int)(net::server_dt*1000000.0));
+            if (next_time > std::chrono::steady_clock::now()) {
+                std::this_thread::sleep_until(next_time);
+            } else {
+                std::cerr << "no delay" << std::endl;
+            }
+            current_time = next_time;
+            game_tick += net::server_dt_multiply;
         }
     }
 };
@@ -373,28 +404,23 @@ public:
 
     std::map<int,net::player_t> players;
 
-    game_events_t get_all_network_events(game_events_t events) {
+    game_events_t get_all_network_events() {
+        game_events_t events;
         ssize_t rsize = 0;
         net::message_t buf;
 
         while ((rsize = recvfrom(client_socket, buf.data, sizeof(buf.data), 0, NULL, 0)) == sizeof(net::message_t))
         {
-            if (buf.type == net::MESSAGE_EXPLOSION) {
-                events.new_explosions.push_back(net::explosion_t::from_message(buf.explosion));
-            } else {
-                std::cerr << "unknown message" << std::endl;
-            }
+            events.push_back(buf);
         }
         return events;
     }
     void send_events(const game_events_t &events) {
         auto [s_addr,s_len] =server_addr;
-        for (auto e : events.new_explosions) {
-            net::message_t buf = {explosion:e.to_message()};
-
-            sendto(client_socket, buf.data, sizeof(buf.data), 0,
-                   (struct sockaddr *)&s_addr, s_len);
-        }
+        for (auto buf : events) if (buf.type == net::MESSAGE_EXPLOSION) {
+                sendto(client_socket, buf.data, sizeof(buf.data), 0,
+                       (struct sockaddr *)&s_addr, s_len);
+            }
     }
 
     void handshake(std::string player_name, std::string hostname, int port) {
@@ -422,11 +448,11 @@ public:
             std::cout <<"hello getting.." << std::endl;
             struct sockaddr_storage peer_addr;
             socklen_t peer_addr_len = sizeof(struct sockaddr_storage);
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 300; i++) {
                 ssize_t rsize = recvfrom(client_socket, buf.data, sizeof(buf.data), 0,
                                          (struct sockaddr *)&peer_addr, &peer_addr_len);
                 if (rsize == 128) break;
-                std::this_thread::sleep_for(1s);
+                std::this_thread::sleep_for(10ms);
             }
             local_player = buf.player;
             if ((local_player.id != -1) && (local_player.type == net::MESSAGE_PLAYER)) {
@@ -458,26 +484,65 @@ public:
 int run_game_client(std::string player_name, std::string hostname, int port) {
     game_client_t game_client(player_name, hostname, port);
 
-
+    auto clear_history = [](uint64_t game_tick, auto &history) {
+        std::list<uint64_t> history_to_del;
+        for (auto &[t,v] : history) {
+            if (t < game_tick) history_to_del.push_back(t);
+        }
+        for (auto t : history_to_del) history.erase(t);
+    };
 
     using namespace std::chrono;
     using namespace std;
     graphics_t graphics;
 
-    game_state_t game_state(60.0);
+    std::uint64_t game_tick = game_client.local_player.game_tick;
+    std::map< uint64_t,game_state_t > game_state = {{game_tick,game_state_t(game_tick)}};
+    std::map< uint64_t,game_events_t > events_history;// = {{game_tick,{}}};
 
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
-    while (true) {
+
+    for (bool game_on = true; game_on;) {
+        game_tick ++;
         // zdarzenia
-        auto events = get_all_events(game_state.game_tick, game_client.local_player);
+        const auto events = get_all_events(game_tick, game_client.local_player);
+        //events_history[game_tick].insert(events_history[game_tick].end(), events.begin(), events.end());
         game_client.send_events(events);
-        events = game_client.get_all_network_events(events);
-        // physics
-        game_state_t new_game_state = game_state_t::physics(game_state, events);
-        game_state = new_game_state; // update state
+
+        // find what is the oldest net event that we must process based on the network events from server
+        uint64_t oldest_net_event = game_tick;
+        for (auto e : game_client.get_all_network_events()) {
+            if (e.type == net::MESSAGE_EXPLOSION) {
+                uint64_t t = e.explosion.game_tick;
+                events_history[t].push_back(e);
+                oldest_net_event = std::min(t,oldest_net_event);
+            } else if (e.type == net::MESSAGE_TICK) {
+                game_tick = e.tick.game_tick; // synchronize to server :)
+            }
+        }
+
+        // find the oldest known state from the state history
+        uint64_t oldest_known_state = game_tick;
+        for (auto &[t,v]:game_state) {
+            if (t < oldest_known_state) oldest_known_state = t;
+        }
+
+        // if the oldest known state is latest than the oldest net event, we can assume that the game just started and we must init the state of the game for previous state
+        if (oldest_known_state > oldest_net_event)
+            game_state[oldest_net_event] = game_state_t(oldest_net_event);
+        // calculate the physics. We replay the events from the oldest on the list from server to the latest.
+        for (uint64_t tick = oldest_net_event; tick <= game_tick; tick++) {
+            random_generator.seed(tick);
+
+            game_state[tick+1] = game_state_t::physics(game_state[tick], events_history[tick]);
+        }
+        // make sure we don't store too much data in the memory
+        clear_history(game_tick - net::events_history_size, events_history);
+        clear_history(game_tick - net::events_history_size, game_state);
+
         // timer
         bool skip_frame = false;
-        auto next_time = current_time + microseconds ((long long int)(game_state.dt*1000000.0));
+        auto next_time = current_time + microseconds ((long long int)(net::dt*1000000.0));
         if (next_time < std::chrono::steady_clock::now()) {
             skip_frame = true;
         } else {
@@ -487,9 +552,14 @@ int run_game_client(std::string player_name, std::string hostname, int port) {
         current_time = next_time;
 
         if (!skip_frame) {
-            graphics.draw(game_state);
+            graphics.draw(game_state[game_tick+1]);
         }
-        if (events.quit) break;
+        for (auto e: events) {
+            if (e.type == net::MESSAGE_END_GAME) {
+                game_on = false;
+                std::cerr << "close game" << std::endl;
+            }
+        }
     }
 
     // send goodbye message

@@ -7,7 +7,15 @@
 #include <vector>
 #include <stdexcept>
 
-using position_t = std::array<double, 2>; ///< 2d graphics and physics
+struct position_t {
+    double y,x;
+    double &operator[](std::size_t i) {
+        return (i&1)?x:y;
+    }
+    double operator[](std::size_t i) const {
+        return (i&1)?x:y;
+    }
+};
 
 position_t operator+(const position_t &a, const position_t &b) {
     return {a[0]+b[0],a[1]+b[1]};
@@ -26,62 +34,101 @@ position_t operator/(const position_t &a, const double &b) {
 
 namespace net {
 
+const double fps = 60.0;
+const double dt = 1.0/fps;
+const int server_dt_multiply = 4;
+const double server_dt = dt*server_dt_multiply;
+
+const uint64_t events_history_size = 100;
+
 const int MESSAGE_PLAYER = 1;
 const int MESSAGE_EXPLOSION = 2;
+const int MESSAGE_END_GAME = 3;
+const int MESSAGE_TICK = 4;
+
+
+union message_t;
 
 struct player_t {
     int type;
+    uint64_t game_tick;
     int id;
     char player_name[32];
+    message_t m() const;
 };
 
-
-struct explosion_message_t {
+struct end_game_t {
     int type;
-    int id;
     uint64_t game_tick;
+    bool quit;
+    message_t m() const;
+};
+
+struct explosion_t {
+    int type;
+    uint64_t game_tick;
+    int id;
     double power;
-    double p[2];
+    position_t p;
+    message_t m() const;
+};
+struct tick_t {
+    int type;
+    uint64_t game_tick;
+    message_t m() const;
 };
 
 union message_t {
     int type;
     player_t player;
-    explosion_message_t explosion;
+    explosion_t explosion;
+    end_game_t end_game;
+    tick_t tick;
     unsigned char data[128];
+    inline std::any v() const;
 };
 
+inline message_t player_t::m() const {
+    message_t ret;
+    ret.player = *this;
+    ret.type = MESSAGE_PLAYER;
+    return ret;
+}
+inline message_t explosion_t::m() const {
+    message_t ret;
+    ret.explosion = *this;
+    ret.type = MESSAGE_EXPLOSION;
+    return ret;
+}
+inline message_t end_game_t::m() const {
+    message_t ret;
+    ret.end_game = *this;
+    ret.type = MESSAGE_END_GAME;
+    return ret;
+}
 
+inline message_t tick_t::m() const {
+    message_t ret;
+    ret.tick = *this;
+    ret.type = MESSAGE_TICK;
+    return ret;
+}
 
-
-
-
-struct explosion_t {
-    int id;
-    uint64_t game_tick;
-    double power;
-    position_t p;
-
-    explosion_message_t to_message() {
-        explosion_message_t ret;
-        ret.type = MESSAGE_EXPLOSION;
-        ret.id = id;
-        ret.game_tick = game_tick;
-        ret.power = power;
-        ret.p[0] = p[0];
-        ret.p[1] = p[1];
-        return ret;
+inline std::any message_t::v() const {
+    switch (type)
+    {
+    case MESSAGE_END_GAME:
+        return end_game;
+    case MESSAGE_EXPLOSION:
+        return explosion;
+    case MESSAGE_PLAYER:
+        return player;
+    case MESSAGE_TICK:
+        return tick;
+    default:
+        throw std::invalid_argument("bad message type");
     }
-    static explosion_t from_message(explosion_message_t &message) {
-        explosion_t ret;
-        ret.id = message.id;
-        ret.game_tick = message.game_tick;
-        ret.power = message.power;
-        ret.p[0] = message.p[0];
-        ret.p[1] = message.p[1];
-        return ret;
-    }
-};
+}
 
 }
 
