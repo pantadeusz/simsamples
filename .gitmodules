@@ -1,0 +1,3 @@
+[submodule "smgm/SDL"]
+	path = smgm/SDL
+	url = https://github.com/libsdl-org/SDL
